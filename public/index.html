@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NVIDIA GPU Live Monitor</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📊 NVIDIA GPU Live Monitor</h1>
+        <p>Live streaming from <strong>ws://localhost:8080</strong></p>
+
+        <!-- GPU Utilization -->
+        <div class="chart-section">
+            <h3>GPU Utilization (%)</h3>
+            <canvas id="utilizationChart"></canvas>
+        </div>
+
+        <!-- Memory Usage -->
+        <div class="chart-section">
+            <h3>Memory Usage (MB)</h3>
+            <canvas id="memoryChart"></canvas>
+        </div>
+
+        <!-- Temperature -->
+        <div class="chart-section">
+            <h3>Temperature (°C)</h3>
+            <canvas id="tempChart"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button onclick="requestGpu()">Get Current Stats</button>
+            <button onclick="startLive()">Start Live Streaming</button>
+            <button onclick="stopLive()">Stop Live Streaming</button>
+        </div>
+
+        <div id="status" class="status">Waiting for connection...</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,33 @@
+cmake_minimum_required(VERSION 3.20)
+project(gpustatserver VERSION 1.0.0)
+
+# Set C++ standard to C++23 to support std::expected
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++23 -fcoroutines")
+
+set(CMAKE_TOOLCHAIN_FILE "vcpkg/scripts/buildsystems/vcpkg.cmake" 
+  CACHE STRING "Vcpkg toolchain file")
+
+# Find required packages
+find_package(fmt CONFIG REQUIRED)
+
+# Define macro for httplib SSL support
+find_package(RapidJSON CONFIG REQUIRED)
+find_package(cxxopts CONFIG REQUIRED)
+
+# Find uWebSockets package
+find_package(unofficial-uwebsockets CONFIG REQUIRED)
+
+# Add main executable
+add_executable(gpustatserver
+    gpustatserver.cpp
+)
+
+# Link libraries for main executable
+target_link_libraries(gpustatserver PRIVATE
+    fmt::fmt
+    unofficial::uwebsockets::uwebsockets
+)
+

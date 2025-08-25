@@ -1,0 +1,13 @@
+{
+    "name": "gpustatsrv",
+    "version-string": "0.0.1",
+    "homepage": "https://github.com/sukesh-ak",
+    "description": "GPU Status Server",
+    "license": "MIT",
+    "dependencies": [
+        "fmt",
+        "rapidjson",
+        "cxxopts",
+        "uwebsockets"
+    ]
+}
