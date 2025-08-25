@@ -1,2 +1,5 @@
 /server/build
+/vcpkg
 .claude
+/server/.vs
+/server/out
