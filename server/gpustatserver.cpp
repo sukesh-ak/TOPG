@@ -25,7 +25,7 @@ const std::string NVIDIA_SMI_QUERY =
     "index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu";
 
 // Regex to parse CSV fields
-std::regex csv_regex(R"((\d+),([^,]+),(\d+),(\d+),(\d+),(\d+),(\d+),(\d+))");
+std::regex csv_regex(R"((\d+),\s*([^,]+?),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+))");
 
 // Helper: Run shell command and get output
 std::string exec_command(const char *cmd)
