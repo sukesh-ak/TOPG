@@ -1,6 +1,5 @@
 /server/build
 /vcpkg
-.claude
 /server/.vs
 /server/out
 server/test_parsing

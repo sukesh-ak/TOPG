@@ -9,9 +9,9 @@ TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket
 Install dependencies using [vcpkg - (VC++ Package Manager)](https://vcpkg.io/en/index.html) 
 
 ```bash
-# Clone this repository with recursive option
+# Clone this repository 
 $ git clone  https://github.com/sukesh-ak/topg.git
-$ cd topg
+$ cd topg/server
 
 # Grab vcpkg
 $ git clone https://github.com/microsoft/vcpkg.git
@@ -41,7 +41,10 @@ Usage:
 ```
 
 ## Websocket Web UI Client for visualization
-```python
-# Run this from webui folder
-python3 -m http.server 8081
+```bash
+# Run this from webui folder. 
+$ cd topg/webui
+
+# You can host this folder with anything. Here we use python
+$ python3 -m http.server 8081
 ```
