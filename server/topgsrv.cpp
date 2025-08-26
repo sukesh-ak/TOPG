@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cxxopts.hpp>
 
 // Query string for nvidia-smi
 const std::string NVIDIA_SMI_QUERY =
@@ -155,8 +156,10 @@ class GpuServer
 {
 public:
     uWS::App app;
+    std::string host;
+    int port;
 
-    GpuServer()
+    GpuServer(const std::string &host_addr, int port_num) : host(host_addr), port(port_num)
     {
         setupRoutes();
     }
@@ -227,13 +230,13 @@ public:
                                         std::cout << "Unsubscribed client from live updates on disconnect" << std::endl;
                                     }
                                     std::cout << "Client disconnected: " << ws << " (code: " << code << "), total connections: " << totalConnections.load() << ", live subscribers: " << liveSubscribers.load() << std::endl; }})
-            .listen("0.0.0.0", 8080, [](auto *listen_socket)
+            .listen(host, port, [this](auto *listen_socket)
                     {
             if (listen_socket) {
-                std::cout << "🚀 TOPG GPU Server running on ws://localhost:8080\n";
+                std::cout << "🟢 TOPG GPU Server running on ws://" << host << ":" << port << "\n";
                 std::cout << "💡 Use: /gpu, /live, /stop\n";
             } else {
-                std::cerr << "❌ Failed to listen on port 8080\n";
+                std::cerr << "❌ Failed to listen on " << host << ":" << port << "\n";
             } });
 
         // Set global app for broadcasting
@@ -280,15 +283,46 @@ private:
 };
 
 // Main
-int main()
+int main(int argc, char *argv[])
 {
-    GpuServer server;
+    try
+    {
+        cxxopts::Options options("topgsrv", "TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket");
 
-    // Setup timer for periodic broadcasting
-    server.setupTimer();
+        options.add_options()("h,host", "Host address to bind to", cxxopts::value<std::string>()->default_value("0.0.0.0"))("p,port", "Port to listen on", cxxopts::value<int>()->default_value("8080"))("help", "Print usage information");
 
-    // Run the app
-    server.run();
+        auto result = options.parse(argc, argv);
+
+        if (result.count("help"))
+        {
+            std::cout << options.help() << std::endl;
+            return 0;
+        }
+
+        std::string host = result["host"].as<std::string>();
+        int port = result["port"].as<int>();
+
+        std::cout << "⚪️ Starting TOPG GPU Server...";
+        std::cout << " [Binding to: " << host << ":" << port << "]\n";
+
+        GpuServer server(host, port);
+
+        // Setup timer for periodic broadcasting
+        server.setupTimer();
+
+        // Run the app
+        server.run();
+    }
+    catch (const cxxopts::exceptions::exception &e)
+    {
+        std::cerr << "❌ Error parsing options: " << e.what() << std::endl;
+        return 1;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "❌ Error: " << e.what() << std::endl;
+        return 1;
+    }
 
     return 0;
 }
