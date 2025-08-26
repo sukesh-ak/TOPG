@@ -1,5 +1,14 @@
 {
     "files.associations": {
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "sstream": "cpp",
+        "regex": "cpp",
+        "cstdio": "cpp",
+        "array": "cpp",
+        "iostream": "cpp",
+        "vector": "cpp",
+        "cstdlib": "cpp",
+        "memory": "cpp",
+        "atomic": "cpp"
     }
 }

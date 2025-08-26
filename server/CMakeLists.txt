@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(gpustatserver VERSION 1.0.0)
+project(topg VERSION 1.0.0)
 
 # Set C++ standard to C++23 to support std::expected
 set(CMAKE_CXX_STANDARD 23)
@@ -21,12 +21,12 @@ find_package(cxxopts CONFIG REQUIRED)
 find_package(unofficial-uwebsockets CONFIG REQUIRED)
 
 # Add main executable
-add_executable(gpustatserver
-    gpustatserver.cpp
+add_executable(topg
+    topgsrv.cpp
 )
 
 # Link libraries for main executable
-target_link_libraries(gpustatserver PRIVATE
+target_link_libraries(topg PRIVATE
     fmt::fmt
     unofficial::uwebsockets::uwebsockets
 )
