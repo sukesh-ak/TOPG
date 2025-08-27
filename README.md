@@ -1,5 +1,6 @@
 # TOPG - TOP for GPU (Nvidia GPU)
-TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket  
+- TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket.  
+- Web UI with support for multiple websocket connection.
 
 ### Dashboard  
 ![alt text](assets/webui-dash.png)
@@ -42,7 +43,7 @@ $ ./build/topg
 ./build/debug/topg.exe
 ```
 
-## How to run the server
+#### How to run the server with custom host and port settings
 ```bash
 TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket
 Usage:
