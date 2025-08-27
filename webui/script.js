@@ -12,10 +12,13 @@ const statusEl = document.getElementById("status");
 const hostEl = document.getElementById("host");
 const portEl = document.getElementById("port");
 const connectionUrlEl = document.getElementById("connectionUrl");
-const connectionPanel = document.getElementById("connectionPanel");
-const connectionContent = document.getElementById("connectionContent");
 const connectionStatus = document.getElementById("connectionStatus");
-const expandIcon = document.getElementById("expandIcon");
+const settingsModal = document.getElementById("settingsModal");
+const connectionIndicator = document.getElementById("connectionIndicator");
+
+// Get button elements
+const connectBtn = document.querySelector('button[onclick="connect()"]');
+const disconnectBtn = document.querySelector('button[onclick="disconnect()"]');
 
 // Update connection URL display
 function updateConnectionUrl() {
@@ -25,35 +28,59 @@ function updateConnectionUrl() {
         connectionUrlEl.innerHTML = `Connected: <strong>ws://${host}:${port}</strong>`;
         connectionUrlEl.style.color = "#27ae60";
         connectionStatus.innerHTML = "🟢 Connected";
-        // Make the whole panel smaller when connected and auto-minimize
-        connectionPanel.classList.add('connected');
-        // Auto-minimize when connected to save space
-        if (isExpanded) {
-            toggleConnectionPanel();
+        connectionIndicator.style.display = "inline";
+        connectionIndicator.innerHTML = "🟢";
+        
+        // Disable connect button, enable disconnect button
+        if (connectBtn) {
+            connectBtn.disabled = true;
+            connectBtn.style.opacity = "0.5";
+            connectBtn.style.cursor = "not-allowed";
+        }
+        if (disconnectBtn) {
+            disconnectBtn.disabled = false;
+            disconnectBtn.style.opacity = "1";
+            disconnectBtn.style.cursor = "pointer";
         }
     } else {
         connectionUrlEl.innerHTML = `ws://${host}:${port}`;
         connectionUrlEl.style.color = "#666";
         connectionStatus.innerHTML = "🔴 Disconnected";
-        // Remove connected styling when disconnected
-        connectionPanel.classList.remove('connected');
+        connectionIndicator.style.display = "none";
+        
+        // Enable connect button, disable disconnect button
+        if (connectBtn) {
+            connectBtn.disabled = false;
+            connectBtn.style.opacity = "1";
+            connectBtn.style.cursor = "pointer";
+        }
+        if (disconnectBtn) {
+            disconnectBtn.disabled = true;
+            disconnectBtn.style.opacity = "0.5";
+            disconnectBtn.style.cursor = "not-allowed";
+        }
     }
 }
 
-// Toggle connection panel
-function toggleConnectionPanel() {
-    isExpanded = !isExpanded;
-    
-    if (isExpanded) {
-        connectionContent.classList.remove('hidden');
-        expandIcon.classList.remove('rotated');
-        connectionPanel.classList.remove('minimized');
-    } else {
-        connectionContent.classList.add('hidden');
-        expandIcon.classList.add('rotated');
-        connectionPanel.classList.add('minimized');
+// Modal functions
+function openSettingsModal() {
+    settingsModal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+}
+
+function closeSettingsModal(event) {
+    if (!event || event.target === settingsModal) {
+        settingsModal.classList.remove('show');
+        document.body.style.overflow = '';
     }
 }
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && settingsModal.classList.contains('show')) {
+        closeSettingsModal();
+    }
+});
 
 // Initialize connection
 function connect() {
@@ -266,7 +293,17 @@ function initCharts() {
                             size: 12
                         }
                     }
-                } 
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function() {
+                            return '';
+                        },
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + '%';
+                        }
+                    }
+                }
             },
             scales: { 
                 y: { 
@@ -420,6 +457,9 @@ window.onload = () => {
     initCharts();
     updateConnectionUrl();
     initTheme();
+    
+    // Initialize connection indicator as hidden
+    connectionIndicator.style.display = "none";
     
     // Add event listeners for host/port changes
     hostEl.addEventListener('input', updateConnectionUrl);

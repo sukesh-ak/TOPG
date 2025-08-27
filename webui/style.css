@@ -50,19 +50,41 @@ body {
 .container {
     max-width: 1000px;
     margin: 0 auto;
-    padding: 20px;
+    padding: 10px;
     background: var(--bg-secondary);
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transition: background-color 0.3s ease;
 }
 
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
 h1 {
-    text-align: center;
     color: var(--text-secondary);
-    margin: 10px 0 15px 0;
-    font-size: 18px;
+    margin: 0;
+    font-size: 16px;
     font-weight: 500;
+}
+
+.settings-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+}
+
+.settings-btn:hover {
+    background: var(--border-color);
+    transform: scale(1.05);
 }
 
 .chart-header {
@@ -85,6 +107,24 @@ h1 {
     gap: 5px;
     text-align: right;
     flex-shrink: 0;
+}
+
+.gpu-name-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.connection-indicator {
+    font-size: 10px;
+    display: none;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
 }
 
 .gpu-name,
@@ -110,150 +150,231 @@ h3 {
     margin-top: 20px;
 }
 
-.connection-floating {
+/* Modal Styles */
+.modal-overlay {
     position: fixed;
-    top: 20px;
-    right: 20px;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
     z-index: 1000;
-    background: var(--connection-bg);
-    backdrop-filter: blur(10px);
-    border: 1px solid var(--border-secondary);
-    border-radius: 10px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    min-width: 280px;
-    transition: all 0.3s ease;
+    display: none;
+    justify-content: center;
+    align-items: center;
 }
 
-.connection-floating.minimized {
-    min-width: 160px;
+.modal-overlay.show {
+    display: flex;
 }
 
-.connection-floating.connected {
-    min-width: auto;
-    width: fit-content;
+.modal-content {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow: hidden;
+    animation: modalSlideIn 0.3s ease;
 }
 
-.connection-floating.connected.minimized {
-    width: fit-content;
-    min-width: auto;
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
 }
 
-.connection-header {
-    padding: 10px 15px;
-    cursor: pointer;
+.modal-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-weight: bold;
-    font-size: 14px;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.modal-header h3 {
+    margin: 0;
     color: var(--text-secondary);
-    user-select: none;
+    font-size: 18px;
+    font-weight: 600;
 }
 
-.connection-floating.connected .connection-header {
-    padding: 6px 10px;
-    font-size: 12px;
-    white-space: nowrap;
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
 }
 
-.connection-floating.connected .connection-content.hidden {
-    display: none;
+.modal-close:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
 }
 
-.connection-floating.connected .connection-content:not(.hidden) {
-    display: block;
+.modal-body {
+    padding: 24px;
+    max-height: calc(90vh - 120px);
+    overflow-y: auto;
 }
 
-.connection-header:hover {
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 8px;
+.setting-section {
+    margin-bottom: 32px;
 }
 
-.connection-content {
-    padding: 0 15px 15px 15px;
-    overflow: hidden;
-    transition: all 0.3s ease;
+.setting-section:last-child {
+    margin-bottom: 0;
 }
 
-.connection-content.hidden {
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 0;
+.setting-section h4 {
+    margin: 0 0 16px 0;
+    color: var(--text-secondary);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.connection-status {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
 }
 
 .connection-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.input-group label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.input-group input {
+    padding: 10px 12px;
+    border: 1px solid var(--border-secondary);
+    border-radius: 6px;
+    font-size: 14px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.connection-url {
+    font-size: 12px;
+    color: var(--text-muted);
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    word-break: break-all;
+}
+
+.button-group {
+    display: flex;
+    gap: 12px;
+}
+
+.btn-primary {
+    flex: 1;
+    padding: 10px 16px;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--accent-primary);
+}
+
+.btn-secondary {
+    flex: 1;
+    padding: 10px 16px;
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+}
+
+.btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .theme-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-    font-size: 12px;
+    gap: 12px;
 }
 
 .theme-controls label {
-    color: var(--text-secondary);
+    font-size: 14px;
     font-weight: 500;
+    color: var(--text-secondary);
+    min-width: 60px;
 }
 
 .theme-controls select {
-    padding: 4px 8px;
+    flex: 1;
+    padding: 8px 12px;
     border: 1px solid var(--border-secondary);
-    border-radius: 4px;
+    border-radius: 6px;
     background: var(--bg-secondary);
     color: var(--text-primary);
-    font-size: 12px;
+    font-size: 14px;
     cursor: pointer;
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    transition: border-color 0.2s ease;
 }
 
-.connection-controls input {
-    padding: 6px 8px;
-    border: 1px solid var(--border-secondary);
-    border-radius: 4px;
-    font-size: 12px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-
-.connection-controls button {
-    grid-column: span 1;
-    padding: 6px 10px;
-    font-size: 12px;
-    margin: 0;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    background: var(--accent-primary);
-    color: white;
-    transition: background 0.2s;
-}
-
-.connection-controls button:hover {
-    background: var(--accent-hover);
-}
-
-#connectionUrl {
-    font-size: 11px;
-    color: var(--text-muted);
-    text-align: center;
-    margin: 0;
-    word-break: break-all;
-}
-
-#expandIcon {
-    transition: transform 0.3s ease;
-}
-
-#expandIcon.rotated {
-    transform: rotate(-90deg);
+.theme-controls select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
 }
 
 .main-content {
@@ -269,7 +390,7 @@ h3 {
 }
 
 .chart-section {
-    padding: 12px;
+    padding: 5px;
     background: transparent;
     border-radius: 0;
     border: none;
@@ -283,7 +404,7 @@ h3 {
 
 .gauge-section {
     flex: 0 0 160px;
-    padding: 12px;
+    padding: 5px;
     background: transparent;
     border-radius: 0;
     border: none;

@@ -10,33 +10,57 @@
 </head>
 
 <body>
-    <!-- Connection Settings (Floating) -->
-    <div class="connection-floating" id="connectionPanel">
-        <div class="connection-header" onclick="toggleConnectionPanel()">
-            <span id="connectionStatus">⚡ Connection</span>
-            <span id="expandIcon">▼</span>
-        </div>
-        <div class="connection-content" id="connectionContent">
-            <div class="connection-controls">
-                <input type="text" id="host" value="localhost" placeholder="Host">
-                <input type="number" id="port" value="8080" placeholder="Port">
-                <button onclick="connect()">Connect</button>
-                <button onclick="disconnect()">Disconnect</button>
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal" onclick="closeSettingsModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Settings</h3>
+                <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
             </div>
-            <div class="theme-controls">
-                <label for="themeSelect">Theme:</label>
-                <select id="themeSelect" onchange="changeTheme(this.value)">
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                </select>
+            <div class="modal-body">
+                <div class="setting-section">
+                    <h4>Connection</h4>
+                    <div class="connection-status" id="connectionStatus">
+                        🔴 Disconnected
+                    </div>
+                    <div class="connection-controls">
+                        <div class="input-group">
+                            <label for="host">Host:</label>
+                            <input type="text" id="host" value="localhost" placeholder="Host">
+                        </div>
+                        <div class="input-group">
+                            <label for="port">Port:</label>
+                            <input type="number" id="port" value="8080" placeholder="Port">
+                        </div>
+                        <div class="connection-url" id="connectionUrl">ws://localhost:8080</div>
+                        <div class="button-group">
+                            <button onclick="connect()" class="btn-primary">Connect</button>
+                            <button onclick="disconnect()" class="btn-secondary">Disconnect</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="setting-section">
+                    <h4>Appearance</h4>
+                    <div class="theme-controls">
+                        <label for="themeSelect">Theme:</label>
+                        <select id="themeSelect" onchange="changeTheme(this.value)">
+                            <option value="system">System</option>
+                            <option value="light">Light</option>
+                            <option value="dark">Dark</option>
+                        </select>
+                    </div>
+                </div>
             </div>
-            <div id="connectionUrl">ws://localhost:8080</div>
         </div>
     </div>
 
     <div class="container">
-        <h1>📊 NVIDIA GPU Live Monitor</h1>
+        <div class="header">
+            <h1>📊 NVIDIA GPU Live Monitor</h1>
+            <button class="settings-btn" onclick="openSettingsModal()" title="Settings">
+                ⚙️
+            </button>
+        </div>
 
         <!-- Main Content Area -->
         <div class="main-content">
@@ -45,7 +69,10 @@
                 <div class="chart-header">
                     <h3>GPU & Memory Usage (%)</h3>
                     <div class="gpu-info">
-                        <div class="gpu-name" id="gpuName">--</div>
+                        <div class="gpu-name-container">
+                            <span class="connection-indicator" id="connectionIndicator">🟢</span>
+                            <div class="gpu-name" id="gpuName">--</div>
+                        </div>
                         <div class="total-memory" id="totalMemory">Memory: --</div>
                     </div>
                 </div>
