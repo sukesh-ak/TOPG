@@ -10,7 +10,7 @@ TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket
 
 ## How to compile the server
 
-### On Linux/WSL2
+### On Linux/WSL2/Windows
 Install dependencies using [vcpkg - (VC++ Package Manager)](https://vcpkg.io/en/index.html) 
 
 ```bash
@@ -25,7 +25,7 @@ $ git clone https://github.com/microsoft/vcpkg.git
 # Linux
 $ ./vcpkg/bootstrap-vcpkg.sh  
 
-# Windows (Might need latest c++)
+# Windows
 .\vcpkg\bootstrap-vcpkg.bat   
 ```
 
@@ -35,7 +35,11 @@ $ cmake . -B build -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmak
 $ cmake --build build/
 
 # Run executable with default parameters
-$ ./build/topg 
+# Linux
+$ ./build/topg
+
+# Windows
+./build/debug/topg.exe
 ```
 
 ## How to run the server
