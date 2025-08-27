@@ -218,7 +218,18 @@ function stopLive() {
 }
 
 // Initialize charts
+function getThemeColors() {
+    const isDark = document.body.hasAttribute('data-theme') && document.body.getAttribute('data-theme') === 'dark';
+    return {
+        text: isDark ? '#e0e0e0' : '#333333',
+        gridLines: isDark ? '#404040' : '#e0e0e0',
+        gpu: '#2980b9',
+        memory: '#e74c3c'
+    };
+}
+
 function initCharts() {
+    const colors = getThemeColors();
     const ctxCombined = document.getElementById("combinedChart").getContext("2d");
 
     charts.combined = new Chart(ctxCombined, {
@@ -228,7 +239,7 @@ function initCharts() {
             datasets: [{
                 label: 'GPU Utilization (%)',
                 data: [],
-                borderColor: '#2980b9',
+                borderColor: colors.gpu,
                 backgroundColor: 'rgba(41, 128, 185, 0.1)',
                 tension: 0.3,
                 fill: false,
@@ -236,7 +247,7 @@ function initCharts() {
             }, {
                 label: 'Memory Usage (%)',
                 data: [],
-                borderColor: '#e74c3c',
+                borderColor: colors.memory,
                 backgroundColor: 'rgba(231, 76, 60, 0.1)',
                 tension: 0.3,
                 fill: false,
@@ -248,20 +259,47 @@ function initCharts() {
             plugins: { 
                 legend: { 
                     display: true,
-                    position: 'top'
+                    position: 'top',
+                    labels: {
+                        color: colors.text,
+                        font: {
+                            size: 12
+                        }
+                    }
                 } 
             },
             scales: { 
                 y: { 
                     min: 0, 
                     max: 100,
-                    grace: '5%'
+                    grace: '5%',
+                    ticks: {
+                        color: colors.text
+                    },
+                    grid: {
+                        color: colors.gridLines
+                    }
                 },
                 x: { display: false }
             },
             animation: { duration: 0 }
         }
     });
+}
+
+function updateChartColors() {
+    if (!charts.combined) return;
+    
+    const colors = getThemeColors();
+    
+    // Update legend colors
+    charts.combined.options.plugins.legend.labels.color = colors.text;
+    
+    // Update scale colors
+    charts.combined.options.scales.y.ticks.color = colors.text;
+    charts.combined.options.scales.y.grid.color = colors.gridLines;
+    
+    charts.combined.update('none');
 }
 
 // Update temperature gauge
@@ -333,10 +371,55 @@ function updateValues(gpuUtil, memPercent, temp) {
     updateTemperatureGauge(temp);
 }
 
+// Theme management
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'system';
+    const themeSelect = document.getElementById('themeSelect');
+    themeSelect.value = savedTheme;
+    applyTheme(savedTheme);
+}
+
+function changeTheme(theme) {
+    localStorage.setItem('theme', theme);
+    applyTheme(theme);
+}
+
+function applyTheme(theme) {
+    const body = document.body;
+    
+    // Remove existing theme attributes
+    body.removeAttribute('data-theme');
+    
+    if (theme === 'system') {
+        // Use system preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            body.setAttribute('data-theme', 'dark');
+        }
+        // Light theme is default (no attribute needed)
+    } else if (theme === 'dark') {
+        body.setAttribute('data-theme', 'dark');
+    }
+    // Light theme is default (no attribute needed)
+    
+    // Update chart colors when theme changes
+    updateChartColors();
+}
+
+// Listen for system theme changes
+if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        const currentTheme = localStorage.getItem('theme') || 'system';
+        if (currentTheme === 'system') {
+            applyTheme('system');
+        }
+    });
+}
+
 // Initialize everything on load
 window.onload = () => {
     initCharts();
     updateConnectionUrl();
+    initTheme();
     
     // Add event listeners for host/port changes
     hostEl.addEventListener('input', updateConnectionUrl);

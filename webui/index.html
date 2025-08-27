@@ -23,6 +23,14 @@
                 <button onclick="connect()">Connect</button>
                 <button onclick="disconnect()">Disconnect</button>
             </div>
+            <div class="theme-controls">
+                <label for="themeSelect">Theme:</label>
+                <select id="themeSelect" onchange="changeTheme(this.value)">
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
             <div id="connectionUrl">ws://localhost:8080</div>
         </div>
     </div>
