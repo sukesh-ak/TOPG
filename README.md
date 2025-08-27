@@ -22,13 +22,17 @@ $ cd topg/server
 $ git clone https://github.com/microsoft/vcpkg.git
 
 # Run the bootstrap script for vcpkg
-$ ./vcpkg/bootstrap-vcpkg.sh
+# Linux
+$ ./vcpkg/bootstrap-vcpkg.sh  
+
+# Windows (Might need latest c++)
+.\vcpkg\bootstrap-vcpkg.bat   
 ```
 
 ### Compile and Run
 ```bash
-$ chmod +x build.sh
-$ ./build.sh
+$ cmake . -B build -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+$ cmake --build build/
 
 # Run executable with default parameters
 $ ./build/topg 
