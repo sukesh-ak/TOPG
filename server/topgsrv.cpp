@@ -36,7 +36,13 @@ std::string exec_command(const char *cmd)
 {
     std::array<char, 128> buffer;
     std::string result;
+    
+#ifdef _WIN32
+    std::unique_ptr<FILE, int (*)(FILE *)> pipe(_popen(cmd, "r"), _pclose);
+#else
     std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd, "r"), pclose);
+#endif
+    
     if (!pipe)
     {
         return "nvidia-smi error: command failed";
@@ -166,70 +172,76 @@ public:
 
     void setupRoutes()
     {
-        app.ws<UserData>("/*", {.compression = uWS::SHARED_COMPRESSOR,
-                                .maxPayloadLength = 16 * 1024,
-                                .idleTimeout = 16,
-                                .maxBackpressure = 1 * 1024 * 1024,
-                                .closeOnBackpressureLimit = false,
-                                .resetIdleTimeoutOnSend = true,
-                                .sendPingsAutomatically = true,
+        uWS::App::WebSocketBehavior<UserData> behavior;
+        behavior.compression = uWS::SHARED_COMPRESSOR;
+        behavior.maxPayloadLength = 16 * 1024;
+        behavior.idleTimeout = 16;
+        behavior.maxBackpressure = 1 * 1024 * 1024;
+        behavior.closeOnBackpressureLimit = false;
+        behavior.resetIdleTimeoutOnSend = true;
+        behavior.sendPingsAutomatically = true;
 
-                                .open = [](auto *ws)
-                                {
-                UserData* user_data = (UserData*)ws->getUserData();
+        behavior.open = [](auto *ws)
+        {
+            UserData* user_data = (UserData*)ws->getUserData();
+            user_data->live = false;
+            totalConnections++;
+            std::cout << "Client connected: " << ws << ", total connections: " << totalConnections.load() << std::endl;
+            std::string welcome = R"({"status":"connected","help":"/gpu, /live, /stop"})";
+            ws->send(welcome, uWS::OpCode::TEXT);
+        };
+
+        behavior.message = [this](auto *ws, std::string_view message, uWS::OpCode opCode)
+        {
+            std::string payload(message);
+            UserData* user_data = static_cast<UserData*>(ws->getUserData());
+
+            if (payload == "/gpu") {
+                std::string output = run_nvidia_smi();
+                auto parsed = parse_nvidia_smi_output(output);
+                std::string json = to_json_array(parsed);
+                ws->send(json, uWS::OpCode::TEXT);
+            }
+            else if (payload == "/live") {
+                if (!user_data->live) {
+                    user_data->live = true;
+                    ws->subscribe("gpu_live");
+                    liveSubscribers++;
+                    std::cout << "Client subscribed to live updates, total live subscribers: " << liveSubscribers.load() << std::endl;
+                }
+                std::string resp = R"({"status":"live","message":"Live updates enabled"})";
+                ws->send(resp, uWS::OpCode::TEXT);
+            }
+            else if (payload == "/stop") {
+                if (user_data->live) {
+                    user_data->live = false;
+                    ws->unsubscribe("gpu_live");
+                    liveSubscribers--;
+                    std::cout << "Client unsubscribed from live updates, remaining live subscribers: " << liveSubscribers.load() << std::endl;
+                }
+                std::string resp = R"({"status":"stopped","message":"Live updates stopped"})";
+                ws->send(resp, uWS::OpCode::TEXT);
+            }
+            else {
+                std::string resp = "{\"error\":\"Unknown command: " + payload + "\"}";
+                ws->send(resp, uWS::OpCode::TEXT);
+            }
+        };
+
+        behavior.close = [](auto *ws, int code, std::string_view message)
+        { 
+            UserData* user_data = static_cast<UserData*>(ws->getUserData());
+            totalConnections--;
+            if (user_data && user_data->live) {
+                ws->unsubscribe("gpu_live");
                 user_data->live = false;
-                totalConnections++;
-                std::cout << "Client connected: " << ws << ", total connections: " << totalConnections.load() << std::endl;
-                std::string welcome = R"({"status":"connected","help":"/gpu, /live, /stop"})";
-                ws->send(welcome, uWS::OpCode::TEXT); },
+                liveSubscribers--;
+                std::cout << "Unsubscribed client from live updates on disconnect" << std::endl;
+            }
+            std::cout << "Client disconnected: " << ws << " (code: " << code << "), total connections: " << totalConnections.load() << ", live subscribers: " << liveSubscribers.load() << std::endl;
+        };
 
-                                .message = [this](auto *ws, std::string_view message, uWS::OpCode opCode)
-                                {
-                std::string payload(message);
-                UserData* user_data = static_cast<UserData*>(ws->getUserData());
-
-                if (payload == "/gpu") {
-                    std::string output = run_nvidia_smi();
-                    auto parsed = parse_nvidia_smi_output(output);
-                    std::string json = to_json_array(parsed);
-                    ws->send(json, uWS::OpCode::TEXT);
-                }
-                else if (payload == "/live") {
-                    if (!user_data->live) {
-                        user_data->live = true;
-                        ws->subscribe("gpu_live");
-                        liveSubscribers++;
-                        std::cout << "Client subscribed to live updates, total live subscribers: " << liveSubscribers.load() << std::endl;
-                    }
-                    std::string resp = R"({"status":"live","message":"Live updates enabled"})";
-                    ws->send(resp, uWS::OpCode::TEXT);
-                }
-                else if (payload == "/stop") {
-                    if (user_data->live) {
-                        user_data->live = false;
-                        ws->unsubscribe("gpu_live");
-                        liveSubscribers--;
-                        std::cout << "Client unsubscribed from live updates, remaining live subscribers: " << liveSubscribers.load() << std::endl;
-                    }
-                    std::string resp = R"({"status":"stopped","message":"Live updates stopped"})";
-                    ws->send(resp, uWS::OpCode::TEXT);
-                }
-                else {
-                    std::string resp = "{\"error\":\"Unknown command: " + payload + "\"}";
-                    ws->send(resp, uWS::OpCode::TEXT);
-                } },
-
-                                .close = [](auto *ws, int code, std::string_view message)
-                                { 
-                                    UserData* user_data = static_cast<UserData*>(ws->getUserData());
-                                    totalConnections--;
-                                    if (user_data && user_data->live) {
-                                        ws->unsubscribe("gpu_live");
-                                        user_data->live = false;
-                                        liveSubscribers--;
-                                        std::cout << "Unsubscribed client from live updates on disconnect" << std::endl;
-                                    }
-                                    std::cout << "Client disconnected: " << ws << " (code: " << code << "), total connections: " << totalConnections.load() << ", live subscribers: " << liveSubscribers.load() << std::endl; }})
+        app.ws<UserData>("/*", std::move(behavior))
             .listen(host, port, [this](auto *listen_socket)
                     {
             if (listen_socket) {
