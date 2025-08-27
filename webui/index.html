@@ -19,35 +19,34 @@
             </div>
             <div class="modal-body">
                 <div class="setting-section">
-                    <h4>Connection</h4>
-                    <div class="connection-status" id="connectionStatus">
-                        🔴 Disconnected
-                    </div>
-                    <div class="connection-controls">
-                        <div class="input-group">
-                            <label for="host">Host:</label>
-                            <input type="text" id="host" value="localhost" placeholder="Host">
+                    <h4>Connections</h4>
+                    <div class="connection-manager">
+                        <div class="add-connection">
+                            <div class="input-row">
+                                <div class="input-group">
+                                    <label for="newHost">Host:</label>
+                                    <input type="text" id="newHost" placeholder="e.g., 192.168.1.100">
+                                </div>
+                                <div class="input-group">
+                                    <label for="newPort">Port:</label>
+                                    <input type="number" id="newPort" placeholder="8080" value="8080">
+                                </div>
+                                <div class="input-group">
+                                    <label for="newName">Name:</label>
+                                    <input type="text" id="newName" placeholder="e.g., Gaming PC">
+                                </div>
+                                <button onclick="addConnection()" class="btn-add">+ Add</button>
+                            </div>
                         </div>
-                        <div class="input-group">
-                            <label for="port">Port:</label>
-                            <input type="number" id="port" value="8080" placeholder="Port">
+                        
+                        <div class="connections-list" id="connectionsList">
+                            <!-- Connection items will be added dynamically -->
                         </div>
-                        <div class="connection-url" id="connectionUrl">ws://localhost:8080</div>
-                        <div class="button-group">
-                            <button onclick="connect()" class="btn-primary">Connect</button>
-                            <button onclick="disconnect()" class="btn-secondary">Disconnect</button>
+                        
+                        <div class="connection-actions">
+                            <button onclick="connectAll()" class="btn-primary">Connect All</button>
+                            <button onclick="disconnectAll()" class="btn-secondary">Disconnect All</button>
                         </div>
-                    </div>
-                </div>
-                <div class="setting-section">
-                    <h4>Appearance</h4>
-                    <div class="theme-controls">
-                        <label for="themeSelect">Theme:</label>
-                        <select id="themeSelect" onchange="changeTheme(this.value)">
-                            <option value="system">System</option>
-                            <option value="light">Light</option>
-                            <option value="dark">Dark</option>
-                        </select>
                     </div>
                 </div>
             </div>
@@ -57,53 +56,28 @@
     <div class="container">
         <div class="header">
             <h1>📊 NVIDIA GPU Live Monitor</h1>
-            <button class="settings-btn" onclick="openSettingsModal()" title="Settings">
-                ⚙️
-            </button>
+            <div class="header-actions">
+                <button class="theme-toggle-btn" onclick="toggleTheme()" title="Toggle Theme" id="themeToggle">
+                    🌙
+                </button>
+                <button class="settings-btn" onclick="openSettingsModal()" title="Settings">
+                    ⚙️
+                </button>
+            </div>
         </div>
 
         <!-- Main Content Area -->
-        <div class="main-content">
-            <!-- GPU & Memory Usage -->
-            <div class="chart-section chart-left">
-                <div class="chart-header">
-                    <h3>GPU & Memory Usage (%)</h3>
-                    <div class="gpu-info">
-                        <div class="gpu-name-container">
-                            <span class="connection-indicator" id="connectionIndicator">🟢</span>
-                            <div class="gpu-name" id="gpuName">--</div>
-                        </div>
-                        <div class="total-memory" id="totalMemory">Memory: --</div>
-                    </div>
-                </div>
-                <div class="values-display">
-                    <span id="gpuValue">GPU: --</span>
-                    <span id="memoryValue">Memory: --</span>
-                </div>
-                <canvas id="combinedChart"></canvas>
-            </div>
-
-            <!-- Temperature Gauge -->
-            <div class="gauge-section">
-                <h3>Temperature</h3>
-                <div class="temperature-gauge">
-                    <div class="gauge-container">
-                        <div class="gauge-track"></div>
-                        <div class="gauge-fill" id="gaugeFill"></div>
-                        <div class="gauge-marks">
-                            <span class="gauge-mark" style="bottom: 0%">20°C</span>
-                            <span class="gauge-mark" style="bottom: 25%">40°C</span>
-                            <span class="gauge-mark" style="bottom: 50%">60°C</span>
-                            <span class="gauge-mark" style="bottom: 75%">80°C</span>
-                            <span class="gauge-mark" style="bottom: 100%">100°C</span>
-                        </div>
-                    </div>
-                    <div class="gauge-value" id="tempValue">--°C</div>
+        <div class="gpu-grid" id="gpuGrid">
+            <!-- GPU cards will be added dynamically -->
+            <div class="no-connections" id="noConnections">
+                <div class="empty-state">
+                    <h3>No GPU Connections</h3>
+                    <p>Click the settings icon to add GPU monitoring connections</p>
+                    <button onclick="openSettingsModal()" class="btn-primary">Add Connection</button>
                 </div>
             </div>
         </div>
 
-        <div id="status" class="status">Waiting for connection...</div>
     </div>
 
     <script src="script.js"></script>

@@ -1,7 +1,12 @@
 # TOPG - TOP for GPU (Nvidia GPU)
 TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket  
 
-![alt text](assets/webui.png)
+### Dashboard  
+![alt text](assets/webui-dash.png)
+
+### Connection Settings  
+![alt text](assets/webui-settings.png)
+
 
 ## How to compile the server
 
@@ -25,8 +30,8 @@ $ ./vcpkg/bootstrap-vcpkg.sh
 $ chmod +x build.sh
 $ ./build.sh
 
-# Run executable with CLI help
-$ ./build/topg --help
+# Run executable with default parameters
+$ ./build/topg 
 ```
 
 ## How to run the server

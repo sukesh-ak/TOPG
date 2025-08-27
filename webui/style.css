@@ -71,7 +71,13 @@ h1 {
     font-weight: 500;
 }
 
-.settings-btn {
+.header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.settings-btn, .theme-toggle-btn {
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
     border-radius: 6px;
@@ -80,11 +86,20 @@ h1 {
     font-size: 14px;
     color: var(--text-secondary);
     transition: all 0.3s ease;
+    min-width: 36px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.settings-btn:hover {
+.settings-btn:hover, .theme-toggle-btn:hover {
     background: var(--border-color);
     transform: scale(1.05);
+}
+
+.theme-toggle-btn {
+    position: relative;
 }
 
 .chart-header {
@@ -173,8 +188,8 @@ h3 {
     background: var(--bg-secondary);
     border-radius: 12px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    width: 90%;
-    max-width: 500px;
+    width: 95%;
+    max-width: 600px;
     max-height: 90vh;
     overflow: hidden;
     animation: modalSlideIn 0.3s ease;
@@ -347,34 +362,332 @@ h3 {
     cursor: not-allowed;
 }
 
-.theme-controls {
+
+/* Connection Manager Styles */
+.connection-manager {
     display: flex;
-    align-items: center;
-    gap: 12px;
+    flex-direction: column;
+    gap: 20px;
 }
 
-.theme-controls label {
+.add-connection {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 16px;
+    background: var(--bg-tertiary);
+}
+
+.input-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: end;
+}
+
+.input-row .input-group {
+    flex: 1;
+    min-width: 120px;
+}
+
+.input-row .input-group:nth-child(2) {
+    flex: 0 0 80px;
+}
+
+.input-row .input-group:nth-child(3) {
+    flex: 1.5;
+}
+
+@media (max-width: 600px) {
+    .input-row {
+        flex-direction: column;
+        gap: 16px;
+    }
+    
+    .input-row .input-group {
+        min-width: unset;
+    }
+    
+    .input-row .input-group:nth-child(2) {
+        flex: 1;
+    }
+    
+    .btn-add {
+        width: 100%;
+    }
+}
+
+.btn-add {
+    padding: 8px 12px;
+    background: var(--accent-primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
     font-size: 14px;
     font-weight: 500;
-    color: var(--text-secondary);
-    min-width: 60px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    height: fit-content;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
-.theme-controls select {
+.btn-add:hover {
+    background: var(--accent-hover);
+}
+
+.connections-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.connections-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.connections-list::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+}
+
+.connections-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.connections-list::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+}
+
+.connection-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    transition: border-color 0.2s ease;
+    min-height: 50px;
+}
+
+.connection-item.connected {
+    border-color: #27ae60;
+    background: rgba(39, 174, 96, 0.1);
+}
+
+.connection-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.connection-name {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.2;
+}
+
+.connection-address {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.2;
+}
+
+.connection-status-indicator {
+    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.connection-status-indicator.connected {
+    background: rgba(39, 174, 96, 0.2);
+    color: #27ae60;
+}
+
+.connection-status-indicator.disconnected {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+}
+
+.connection-actions-small {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-small {
+    padding: 3px 6px;
+    font-size: 10px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 45px;
+}
+
+.btn-small:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-connect {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.btn-connect:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.btn-disconnect {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid var(--border-secondary);
+}
+
+.btn-disconnect:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+}
+
+.btn-remove {
+    background: #e74c3c;
+    color: white;
+}
+
+.btn-remove:hover {
+    background: #c0392b;
+}
+
+.connection-actions {
+    display: flex;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* GPU Grid Layout */
+.gpu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.no-connections {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 300px;
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.empty-state h3 {
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.empty-state p {
+    margin-bottom: 20px;
+}
+
+/* GPU Card */
+.gpu-card {
+    background: var(--bg-tertiary);
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.gpu-card.connected {
+    border-color: rgba(39, 174, 96, 0.3);
+}
+
+.gpu-card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.gpu-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gpu-card-name {
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.gpu-card-connection {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.gpu-card-status {
+    font-size: 10px;
+    animation: pulse 2s infinite;
+}
+
+.gpu-card-body {
+    padding: 16px;
+}
+
+.gpu-metrics {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.metric-item {
     flex: 1;
     padding: 8px 12px;
-    border: 1px solid var(--border-secondary);
-    border-radius: 6px;
     background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 14px;
-    cursor: pointer;
-    transition: border-color 0.2s ease;
+    border-radius: 6px;
+    text-align: center;
 }
 
-.theme-controls select:focus {
-    outline: none;
-    border-color: var(--accent-primary);
+.metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.metric-value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.gpu-chart-container {
+    height: 150px;
+    margin-bottom: 12px;
+}
+
+.gpu-info-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.gpu-info-item {
+    color: var(--text-muted);
 }
 
 .main-content {

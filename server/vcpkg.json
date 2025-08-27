@@ -1,8 +1,8 @@
 {
-    "name": "gpustatsrv",
+    "name": "topg",
     "version-string": "0.0.1",
     "homepage": "https://github.com/sukesh-ak",
-    "description": "GPU Status Server",
+    "description": "TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket",
     "license": "MIT",
     "dependencies": [
         "fmt",
