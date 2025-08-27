@@ -45,7 +45,8 @@ h1 {
     flex-shrink: 0;
 }
 
-.gpu-name, .total-memory {
+.gpu-name,
+.total-memory {
     font-size: 12px;
     color: #34495e;
     font-weight: 500;
@@ -187,30 +188,34 @@ h3 {
 
 .main-content {
     display: flex;
-    gap: 30px;
+    gap: 0;
     align-items: stretch;
-}
-
-.chart-section {
     margin: 30px 0;
-    padding: 15px;
     background: #f8f9fa;
     border-radius: 10px;
     border: 1px solid #e9ecef;
+    overflow: hidden;
+}
+
+.chart-section {
+    padding: 15px;
+    background: transparent;
+    border-radius: 0;
+    border: none;
 }
 
 .chart-left {
     flex: 1;
     margin: 0;
+    border-right: 1px solid #e9ecef;
 }
 
 .gauge-section {
     flex: 0 0 200px;
-    margin: 30px 0;
     padding: 15px;
-    background: #f8f9fa;
-    border-radius: 10px;
-    border: 1px solid #e9ecef;
+    background: transparent;
+    border-radius: 0;
+    border: none;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -248,8 +253,8 @@ h3 {
 
 .gauge-fill {
     position: absolute;
-    bottom: 2px;
-    left: 2px;
+    bottom: 1px;
+    left: 4px;
     right: 2px;
     height: 0%;
     background: linear-gradient(to top, #4caf50, #ffeb3b, #ff9800, #f44336);
@@ -340,32 +345,33 @@ button:hover {
     canvas {
         max-height: 200px;
     }
-    
+
     .main-content {
         flex-direction: column;
     }
-    
+
     .gauge-section {
         flex: none;
         width: 100%;
     }
-    
+
     .gauge-container {
         width: 60px;
         height: 150px;
     }
-    
+
     .chart-header {
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .gpu-info {
         text-align: left;
         width: 100%;
     }
-    
-    .gpu-name, .total-memory {
+
+    .gpu-name,
+    .total-memory {
         text-align: left;
     }
 }
