@@ -153,10 +153,6 @@ struct UserData
 // Global App pointer for broadcasting
 uWS::App *globalApp = nullptr;
 
-// Manual connection counters
-std::atomic<int> totalConnections{0};
-std::atomic<int> liveSubscribers{0};
-
 // GPU Server
 class GpuServer
 {
@@ -185,34 +181,49 @@ public:
         behavior.open = [](auto *ws)
         {
             UserData *user_data = (UserData *)ws->getUserData();
-            user_data->live = true;
-            ws->subscribe("gpu_live");
-            totalConnections++;
-            liveSubscribers++;
-            std::cout << "Client connected: " << ws << ", total connections: " << totalConnections.load() << ", live subscribers: " << liveSubscribers.load() << std::endl;
-            std::string welcome = R"({"status":"connected","message":"Live GPU updates started"})";
+            user_data->live = false;
+
+            std::cout << "Client connected: " << ws << std::endl;
+            std::string welcome = R"({"status":"connected","help":"/live"})";
             ws->send(welcome, uWS::OpCode::TEXT);
         };
 
         behavior.message = [this](auto *ws, std::string_view message, uWS::OpCode opCode)
         {
-            // No message handling needed - live updates are automatic
-            std::string resp = R"({"status":"info","message":"Live GPU updates are running automatically"})";
-            ws->send(resp, uWS::OpCode::TEXT);
+            std::string payload(message);
+            UserData *user_data = static_cast<UserData *>(ws->getUserData());
+
+            if (payload == "/live")
+            {
+                if (!user_data->live)
+                {
+                    user_data->live = true;
+                    ws->subscribe("gpu_live");
+
+                    std::cout << "Client subscribed to live updates" << std::endl;
+                }
+                std::string resp = R"({"status":"live","message":"Live updates enabled"})";
+                ws->send(resp, uWS::OpCode::TEXT);
+            }
+            else
+            {
+                std::string resp = "{\"error\":\"Unknown command: " + payload + "\"}";
+                ws->send(resp, uWS::OpCode::TEXT);
+            }
         };
 
         behavior.close = [](auto *ws, int code, std::string_view message)
         {
             UserData *user_data = static_cast<UserData *>(ws->getUserData());
-            totalConnections--;
+
             if (user_data && user_data->live)
             {
                 ws->unsubscribe("gpu_live");
                 user_data->live = false;
-                liveSubscribers--;
+
                 std::cout << "Unsubscribed client from live updates on disconnect" << std::endl;
             }
-            std::cout << "Client disconnected: " << ws << " (code: " << code << "), total connections: " << totalConnections.load() << ", live subscribers: " << liveSubscribers.load() << std::endl;
+            std::cout << "Client disconnected: " << ws << std::endl;
         };
 
         app.ws<UserData>("/*", std::move(behavior))
@@ -220,7 +231,7 @@ public:
                     {
             if (listen_socket) {
                 std::cout << "🟢 TOPG GPU Server running on ws://" << host << ":" << port << "\n";
-                std::cout << "💡 Live GPU updates start automatically on connection.\n";
+                std::cout << "💡 Use: /live\n";
             } else {
                 std::cerr << "❌ Failed to listen on " << host << ":" << port << "\n";
             } });
@@ -244,11 +255,13 @@ public:
                     std::string output = exec_command("nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits");
                     auto parsed = parse_nvidia_smi_output(output);
                     std::string json = to_json_array(parsed);
+                    globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
+                    std::cout << "Broadcasting GPU data array to live clients" << std::endl;
 
                     // Broadcast to all subscribed clients
                     globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
 #ifdef ENABLE_DEBUG
-                    std::cout << "Broadcasting GPU data to " << liveSubscribers.load() << " live clients" << std::endl;
+                    std::cout << "Broadcasting GPU data array to live clients" << std::endl;
 #endif
                 }
             } })
@@ -275,7 +288,10 @@ int main(int argc, char *argv[])
     {
         cxxopts::Options options("topgsrv", "TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket");
 
-        options.add_options()("h,host", "Host address to bind to", cxxopts::value<std::string>()->default_value("0.0.0.0"))("p,port", "Port to listen on", cxxopts::value<int>()->default_value("8080"))("f,frequency", "Update frequency in milliseconds (default: 1000)", cxxopts::value<int>()->default_value("1000"))("help", "Print usage information");
+        options.add_options()("h,host", "Host address to bind to", cxxopts::value<std::string>()->default_value("0.0.0.0"))   // Host
+            ("p,port", "Port to listen on", cxxopts::value<int>()->default_value("8080"))                                     // Port
+            ("f,frequency", "Update frequency in milliseconds (default: 1000)", cxxopts::value<int>()->default_value("1000")) // Update frequency
+            ("help", "Print usage information");                                                                              // Help
 
         auto result = options.parse(argc, argv);
 
