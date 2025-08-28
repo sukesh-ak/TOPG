@@ -36,13 +36,13 @@ std::string exec_command(const char *cmd)
 {
     std::array<char, 128> buffer;
     std::string result;
-    
+
 #ifdef _WIN32
     std::unique_ptr<FILE, int (*)(FILE *)> pipe(_popen(cmd, "r"), _pclose);
 #else
     std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd, "r"), pclose);
 #endif
-    
+
     if (!pipe)
     {
         return "nvidia-smi error: command failed";
@@ -164,8 +164,9 @@ public:
     uWS::App app;
     std::string host;
     int port;
+    int update_interval_ms;
 
-    GpuServer(const std::string &host_addr, int port_num) : host(host_addr), port(port_num)
+    GpuServer(const std::string &host_addr, int port_num, int update_interval) : host(host_addr), port(port_num), update_interval_ms(update_interval)
     {
         setupRoutes();
     }
@@ -183,56 +184,29 @@ public:
 
         behavior.open = [](auto *ws)
         {
-            UserData* user_data = (UserData*)ws->getUserData();
-            user_data->live = false;
+            UserData *user_data = (UserData *)ws->getUserData();
+            user_data->live = true;
+            ws->subscribe("gpu_live");
             totalConnections++;
-            std::cout << "Client connected: " << ws << ", total connections: " << totalConnections.load() << std::endl;
-            std::string welcome = R"({"status":"connected","help":"/gpu, /live, /stop"})";
+            liveSubscribers++;
+            std::cout << "Client connected: " << ws << ", total connections: " << totalConnections.load() << ", live subscribers: " << liveSubscribers.load() << std::endl;
+            std::string welcome = R"({"status":"connected","message":"Live GPU updates started"})";
             ws->send(welcome, uWS::OpCode::TEXT);
         };
 
         behavior.message = [this](auto *ws, std::string_view message, uWS::OpCode opCode)
         {
-            std::string payload(message);
-            UserData* user_data = static_cast<UserData*>(ws->getUserData());
-
-            if (payload == "/gpu") {
-                std::string output = run_nvidia_smi();
-                auto parsed = parse_nvidia_smi_output(output);
-                std::string json = to_json_array(parsed);
-                ws->send(json, uWS::OpCode::TEXT);
-            }
-            else if (payload == "/live") {
-                if (!user_data->live) {
-                    user_data->live = true;
-                    ws->subscribe("gpu_live");
-                    liveSubscribers++;
-                    std::cout << "Client subscribed to live updates, total live subscribers: " << liveSubscribers.load() << std::endl;
-                }
-                std::string resp = R"({"status":"live","message":"Live updates enabled"})";
-                ws->send(resp, uWS::OpCode::TEXT);
-            }
-            else if (payload == "/stop") {
-                if (user_data->live) {
-                    user_data->live = false;
-                    ws->unsubscribe("gpu_live");
-                    liveSubscribers--;
-                    std::cout << "Client unsubscribed from live updates, remaining live subscribers: " << liveSubscribers.load() << std::endl;
-                }
-                std::string resp = R"({"status":"stopped","message":"Live updates stopped"})";
-                ws->send(resp, uWS::OpCode::TEXT);
-            }
-            else {
-                std::string resp = "{\"error\":\"Unknown command: " + payload + "\"}";
-                ws->send(resp, uWS::OpCode::TEXT);
-            }
+            // No message handling needed - live updates are automatic
+            std::string resp = R"({"status":"info","message":"Live GPU updates are running automatically"})";
+            ws->send(resp, uWS::OpCode::TEXT);
         };
 
         behavior.close = [](auto *ws, int code, std::string_view message)
-        { 
-            UserData* user_data = static_cast<UserData*>(ws->getUserData());
+        {
+            UserData *user_data = static_cast<UserData *>(ws->getUserData());
             totalConnections--;
-            if (user_data && user_data->live) {
+            if (user_data && user_data->live)
+            {
                 ws->unsubscribe("gpu_live");
                 user_data->live = false;
                 liveSubscribers--;
@@ -246,7 +220,7 @@ public:
                     {
             if (listen_socket) {
                 std::cout << "🟢 TOPG GPU Server running on ws://" << host << ":" << port << "\n";
-                std::cout << "💡 Use: /gpu, /live, /stop\n";
+                std::cout << "💡 Live GPU updates start automatically on connection.\n";
             } else {
                 std::cerr << "❌ Failed to listen on " << host << ":" << port << "\n";
             } });
@@ -264,7 +238,7 @@ public:
         std::thread([this]()
                     {
             while (true) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+                std::this_thread::sleep_for(std::chrono::milliseconds(update_interval_ms));
                 
                 if (globalApp) {
                     std::string output = exec_command("nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits");
@@ -301,7 +275,7 @@ int main(int argc, char *argv[])
     {
         cxxopts::Options options("topgsrv", "TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket");
 
-        options.add_options()("h,host", "Host address to bind to", cxxopts::value<std::string>()->default_value("0.0.0.0"))("p,port", "Port to listen on", cxxopts::value<int>()->default_value("8080"))("help", "Print usage information");
+        options.add_options()("h,host", "Host address to bind to", cxxopts::value<std::string>()->default_value("0.0.0.0"))("p,port", "Port to listen on", cxxopts::value<int>()->default_value("8080"))("f,frequency", "Update frequency in milliseconds (default: 1000)", cxxopts::value<int>()->default_value("1000"))("help", "Print usage information");
 
         auto result = options.parse(argc, argv);
 
@@ -313,11 +287,13 @@ int main(int argc, char *argv[])
 
         std::string host = result["host"].as<std::string>();
         int port = result["port"].as<int>();
+        int frequency = result["frequency"].as<int>();
 
         std::cout << "⚪️ Starting TOPG GPU Server...";
         std::cout << " [Binding to: " << host << ":" << port << "]\n";
+        std::cout << " [Update frequency: " << frequency << "ms]\n";
 
-        GpuServer server(host, port);
+        GpuServer server(host, port, frequency);
 
         // Setup timer for periodic broadcasting
         server.setupTimer();
