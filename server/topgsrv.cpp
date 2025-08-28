@@ -256,8 +256,6 @@ public:
                     auto parsed = parse_nvidia_smi_output(output);
                     std::string json = to_json_array(parsed);
                     globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
-                    std::cout << "Broadcasting GPU data array to live clients" << std::endl;
-
                     // Broadcast to all subscribed clients
                     globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
 #ifdef ENABLE_DEBUG
