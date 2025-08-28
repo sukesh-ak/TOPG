@@ -26,21 +26,21 @@
 
 // Query string for nvidia-smi
 const std::string NVIDIA_SMI_QUERY =
-    "index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu";
+    "nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits";
 
 // Regex to parse CSV fields - much more specific pattern
 std::regex csv_regex(R"(^(\d+),\s*([^,]+?),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)$)");
 
 // Helper: Run shell command and get output
-std::string exec_command(const char *cmd)
+std::string exec_command(const std::string cmd)
 {
     std::array<char, 128> buffer;
     std::string result;
 
 #ifdef _WIN32
-    std::unique_ptr<FILE, int (*)(FILE *)> pipe(_popen(cmd, "r"), _pclose);
+    std::unique_ptr<FILE, int (*)(FILE *)> pipe(_popen(cmd.c_str(), "r"), _pclose);
 #else
-    std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd, "r"), pclose);
+    std::unique_ptr<FILE, int (*)(FILE *)> pipe(popen(cmd.c_str(), "r"), pclose);
 #endif
 
     if (!pipe)
@@ -252,12 +252,11 @@ public:
                 std::this_thread::sleep_for(std::chrono::milliseconds(update_interval_ms));
                 
                 if (globalApp) {
-                    std::string output = exec_command("nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits");
+                    std::string output = exec_command(NVIDIA_SMI_QUERY);
                     auto parsed = parse_nvidia_smi_output(output);
                     std::string json = to_json_array(parsed);
                     globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
-                    // Broadcast to all subscribed clients
-                    globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
+
 #ifdef ENABLE_DEBUG
                     std::cout << "Broadcasting GPU data array to live clients" << std::endl;
 #endif
@@ -272,11 +271,6 @@ public:
     }
 
 private:
-    std::string run_nvidia_smi()
-    {
-        std::string cmd = "nvidia-smi --query-gpu=" + NVIDIA_SMI_QUERY + " --format=csv,noheader,nounits";
-        return exec_command(cmd.c_str());
-    }
 };
 
 // Main
@@ -305,7 +299,7 @@ int main(int argc, char *argv[])
 
         std::cout << "⚪️ Starting TOPG GPU Server...";
         std::cout << " [Binding to: " << host << ":" << port << "]\n";
-        std::cout << " [Update frequency: " << frequency << "ms]\n";
+        std::cout << " Update frequency: " << frequency << "ms\n";
 
         GpuServer server(host, port, frequency);
 
