@@ -1,10 +1,5 @@
-// #define ENABLE_DEBUG
-
 // gpustatserver.cpp
 #include "uwebsockets/App.h"
-#include "libusockets.h"
-// gpustatserver.cpp
-
 #include <iostream>
 #include <string>
 #include <thread>
@@ -12,10 +7,6 @@
 #include <vector>
 #include <sstream>
 #include <regex>
-#include <fmt/core.h>
-#include <rapidjson/document.h>
-#include <rapidjson/stringbuffer.h>
-#include <rapidjson/writer.h>
 #include <cstdlib>
 #include <cstdio>
 #include <memory>
@@ -24,15 +15,12 @@
 #include <atomic>
 #include <cxxopts.hpp>
 
-// Query string for nvidia-smi
 const std::string NVIDIA_SMI_QUERY =
     "nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits";
 
-// Regex to parse CSV fields - much more specific pattern
 std::regex csv_regex(R"(^(\d+),\s*([^,]+?),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)$)");
 
-// Helper: Run shell command and get output
-std::string exec_command(const std::string cmd)
+std::string exec_command(const std::string &cmd)
 {
     std::array<char, 128> buffer;
     std::string result;
@@ -44,9 +32,8 @@ std::string exec_command(const std::string cmd)
 #endif
 
     if (!pipe)
-    {
         return "nvidia-smi error: command failed";
-    }
+
     while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
     {
         result += buffer.data();
@@ -54,106 +41,70 @@ std::string exec_command(const std::string cmd)
     return result;
 }
 
-// Parse nvidia-smi output into JSON strings
 std::vector<std::string> parse_nvidia_smi_output(const std::string &raw_output)
 {
-    std::vector<std::string> lines;
+    std::vector<std::string> result;
     std::istringstream iss(raw_output);
     std::string line;
+
     while (std::getline(iss, line))
     {
         line.erase(line.find_last_not_of("\r\n\t ") + 1);
-        if (!line.empty())
-        {
-            lines.push_back(line);
-        }
-    }
+        if (line.empty())
+            continue;
 
-    std::vector<std::string> result;
-    for (const auto &l : lines)
-    {
         std::smatch match;
-        if (std::regex_match(l, match, csv_regex))
+        if (!std::regex_match(line, match, csv_regex))
+            continue;
+
+        try
         {
-            try
-            {
-                // Parse the 8 fields directly
-                int index = std::stoi(match[1].str());
-                std::string name = match[2].str();
+            std::string name = match[2].str();
+            name.erase(0, name.find_first_not_of(" \t"));
+            name.erase(name.find_last_not_of(" \t") + 1);
 
-                // Trim spaces from GPU name
-                name.erase(0, name.find_first_not_of(" \t"));
-                name.erase(name.find_last_not_of(" \t") + 1);
-
-                int gpu_util = std::stoi(match[3].str());
-                int mem_util = std::stoi(match[4].str());
-                int mem_total = std::stoi(match[5].str());
-                int mem_free = std::stoi(match[6].str());
-                int mem_used = std::stoi(match[7].str());
-                int temperature = std::stoi(match[8].str());
-
-                // Build clean JSON
-                std::string json_str = "{";
-                json_str += "\"index\":" + std::to_string(index) + ",";
-                json_str += "\"name\":\"" + name + "\",";
-                json_str += "\"utilization.gpu\":" + std::to_string(gpu_util) + ",";
-                json_str += "\"utilization.memory\":" + std::to_string(mem_util) + ",";
-                json_str += "\"memory.total\":" + std::to_string(mem_total) + ",";
-                json_str += "\"memory.free\":" + std::to_string(mem_free) + ",";
-                json_str += "\"memory.used\":" + std::to_string(mem_used) + ",";
-                json_str += "\"temperature.gpu\":" + std::to_string(temperature);
-                json_str += "}";
-#ifdef ENABLE_DEBUG
-                std::cout << "Generated individual JSON: " << json_str << std::endl;
-#endif
-                result.push_back(json_str);
-            }
-            catch (const std::exception &e)
-            {
-                // Skip malformed lines silently
-                continue;
-            }
+            result.push_back(
+                "{\"index\":" + match[1].str() +
+                ",\"name\":\"" + name + "\"" +
+                ",\"utilization.gpu\":" + match[3].str() +
+                ",\"utilization.memory\":" + match[4].str() +
+                ",\"memory.total\":" + match[5].str() +
+                ",\"memory.free\":" + match[6].str() +
+                ",\"memory.used\":" + match[7].str() +
+                ",\"temperature.gpu\":" + match[8].str() +
+                "}");
+        }
+        catch (...)
+        {
+            continue;
         }
     }
     return result;
 }
 
-// Convert to JSON array - simplified version
 std::string to_json_array(const std::vector<std::string> &data)
 {
     if (data.empty())
-    {
         return "[]";
-    }
 
     std::string result = "[";
     for (size_t i = 0; i < data.size(); ++i)
     {
         result += data[i];
         if (i < data.size() - 1)
-        {
             result += ",";
-        }
     }
     result += "]";
-#ifdef ENABLE_DEBUG
-    std::cout << "=== FINAL JSON ARRAY SENT TO CLIENT ===" << std::endl;
-    std::cout << result << std::endl;
-    std::cout << "=========================================" << std::endl;
-#endif
     return result;
 }
 
-// User data for WebSocket
 struct UserData
 {
     bool live = false;
 };
 
-// Global App pointer for broadcasting
 uWS::App *globalApp = nullptr;
 
-// GPU Server
 class GpuServer
 {
 public:
@@ -162,7 +113,8 @@ public:
     int port;
     int update_interval_ms;
 
-    GpuServer(const std::string &host_addr, int port_num, int update_interval) : host(host_addr), port(port_num), update_interval_ms(update_interval)
+    GpuServer(const std::string &host_addr, int port_num, int update_interval)
+        : host(host_addr), port(port_num), update_interval_ms(update_interval)
     {
         setupRoutes();
     }
@@ -182,13 +134,11 @@ public:
         {
             UserData *user_data = (UserData *)ws->getUserData();
             user_data->live = false;
-
             std::cout << "Client connected: " << ws << std::endl;
-            std::string welcome = R"({"status":"connected","help":"/live"})";
-            ws->send(welcome, uWS::OpCode::TEXT);
+            ws->send(R"({"status":"connected","help":"/live"})", uWS::OpCode::TEXT);
         };
 
-        behavior.message = [this](auto *ws, std::string_view message, uWS::OpCode opCode)
+        behavior.message = [this](auto *ws, std::string_view message, uWS::OpCode)
         {
             std::string payload(message);
             UserData *user_data = static_cast<UserData *>(ws->getUserData());
@@ -199,28 +149,23 @@ public:
                 {
                     user_data->live = true;
                     ws->subscribe("gpu_live");
-
                     std::cout << "Client subscribed to live updates" << std::endl;
                 }
-                std::string resp = R"({"status":"live","message":"Live updates enabled"})";
-                ws->send(resp, uWS::OpCode::TEXT);
+                ws->send(R"({"status":"live","message":"Live updates enabled"})", uWS::OpCode::TEXT);
             }
             else
             {
-                std::string resp = "{\"error\":\"Unknown command: " + payload + "\"}";
-                ws->send(resp, uWS::OpCode::TEXT);
+                ws->send("{\"error\":\"Unknown command: " + payload + "\"}", uWS::OpCode::TEXT);
             }
         };
 
-        behavior.close = [](auto *ws, int code, std::string_view message)
+        behavior.close = [](auto *ws, int, std::string_view)
         {
             UserData *user_data = static_cast<UserData *>(ws->getUserData());
-
             if (user_data && user_data->live)
             {
                 ws->unsubscribe("gpu_live");
                 user_data->live = false;
-
                 std::cout << "Unsubscribed client from live updates on disconnect" << std::endl;
             }
             std::cout << "Client disconnected: " << ws << std::endl;
@@ -229,37 +174,28 @@ public:
         app.ws<UserData>("/*", std::move(behavior))
             .listen(host, port, [this](auto *listen_socket)
                     {
-            if (listen_socket) {
-                std::cout << "🟢 TOPG GPU Server running on ws://" << host << ":" << port << "\n";
-                std::cout << "💡 Use: /live\n";
-            } else {
-                std::cerr << "❌ Failed to listen on " << host << ":" << port << "\n";
-            } });
+               if (listen_socket) {
+                   std::cout << "🟢 TOPG GPU Server running on ws://" << host << ":" << port << "\n";
+                   std::cout << "💡 Use: /live\n";
+               } else {
+                   std::cerr << "❌ Failed to listen on " << host << ":" << port << "\n";
+               } });
 
-        // Set global app for broadcasting
         globalApp = &app;
     }
 
     void setupTimer()
     {
-        // Set global app for broadcasting
         globalApp = &app;
-
-        // Start a background thread for periodic broadcasting
         std::thread([this]()
                     {
             while (true) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(update_interval_ms));
-                
                 if (globalApp) {
                     std::string output = exec_command(NVIDIA_SMI_QUERY);
                     auto parsed = parse_nvidia_smi_output(output);
                     std::string json = to_json_array(parsed);
                     globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
-
-#ifdef ENABLE_DEBUG
-                    std::cout << "Broadcasting GPU data array to live clients" << std::endl;
-#endif
                 }
             } })
             .detach();
@@ -269,11 +205,8 @@ public:
     {
         app.run();
     }
-
-private:
 };
 
-// Main
 int main(int argc, char *argv[])
 {
     try
@@ -283,10 +216,9 @@ int main(int argc, char *argv[])
         options.add_options()("h,host", "Host address to bind to", cxxopts::value<std::string>()->default_value("0.0.0.0"))   // Host
             ("p,port", "Port to listen on", cxxopts::value<int>()->default_value("8080"))                                     // Port
             ("f,frequency", "Update frequency in milliseconds (default: 1000)", cxxopts::value<int>()->default_value("1000")) // Update frequency
-            ("help", "Print usage information");                                                                              // Help
+            ("help", "Print usage information");
 
         auto result = options.parse(argc, argv);
-
         if (result.count("help"))
         {
             std::cout << options.help() << std::endl;
@@ -297,16 +229,12 @@ int main(int argc, char *argv[])
         int port = result["port"].as<int>();
         int frequency = result["frequency"].as<int>();
 
-        std::cout << "⚪️ Starting TOPG GPU Server...";
+        std::cout << "⚪️ Starting TOPG GPU Server...\n";
         std::cout << " [Binding to: " << host << ":" << port << "]\n";
         std::cout << " Update frequency: " << frequency << "ms\n";
 
         GpuServer server(host, port, frequency);
-
-        // Setup timer for periodic broadcasting
         server.setupTimer();
-
-        // Run the app
         server.run();
     }
     catch (const cxxopts::exceptions::exception &e)
@@ -319,6 +247,5 @@ int main(int argc, char *argv[])
         std::cerr << "❌ Error: " << e.what() << std::endl;
         return 1;
     }
-
     return 0;
 }
