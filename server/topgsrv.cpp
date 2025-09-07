@@ -15,7 +15,28 @@
 #include <atomic>
 #include <cxxopts.hpp>
 
-const std::string NVIDIA_SMI_QUERY =
+/*
+    == Apps using the GPU
+    $ nvidia-smi --query-compute-apps timestamp,gpu_name,pid,process_name,used_memory
+    timestamp, gpu_name, pid, process_name, used_gpu_memory [MiB]
+    2025/09/07 22:33:21.481, NVIDIA GeForce RTX 3090, 1106871, /app/llama-server, 23342 MiB
+
+    $ nvidia-smi --query-compute-apps timestamp,gpu_name,pid,process_name,used_memory --format=csv,noheader,nounits
+    2025/09/07 22:37:17.908, NVIDIA GeForce RTX 3090, 1106871, /app/llama-server, 23342
+*/
+const std::string NVIDIA_SMI_QUERY_PROCS =
+    "nvidia-smi --query-compute-apps timestamp,gpu_name,pid,process_name,used_memory --format=csv,noheader,nounits";
+
+/*
+    == GPU Stats
+    $ nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu
+    index, name, utilization.gpu [%], utilization.memory [%], memory.total [MiB], memory.free [MiB], memory.used [MiB], temperature.gpu
+    0, NVIDIA GeForce RTX 3090, 0 %, 25 %, 24576 MiB, 767 MiB, 23358 MiB, 29
+
+    $ nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits
+    0, NVIDIA GeForce RTX 3090, 0, 17, 24576, 767, 23358, 29
+*/
+const std::string NVIDIA_SMI_QUERY_STATS =
     "nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits";
 
 std::regex csv_regex(R"(^(\d+),\s*([^,]+?),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)$)");
@@ -192,7 +213,7 @@ public:
             while (true) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(update_interval_ms));
                 if (globalApp) {
-                    std::string output = exec_command(NVIDIA_SMI_QUERY);
+                    std::string output = exec_command(NVIDIA_SMI_QUERY_STATS);
                     auto parsed = parse_nvidia_smi_output(output);
                     std::string json = to_json_array(parsed);
                     globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
