@@ -1,0 +1,7 @@
+build/
+vcpkg/
+.git
+.gitignore
+*.md
+Dockerfile
+.dockerignore

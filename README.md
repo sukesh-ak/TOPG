@@ -55,10 +55,51 @@ Usage:
 ```
 
 ## Websocket Web UI Client for visualization
-```bash
-# Run this from webui folder. 
-$ cd topg/webui
 
-# You can host this folder with anything. Here we use python
+### Option 1: Using Docker (Recommended)
+```bash
+# Prerequisites: Install NVIDIA Container Toolkit for GPU access (for server only)
+# https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html
+
+# Option A: Run both server and webui together
+$ docker compose up -d
+
+# Option B: Run only the GPU server (requires GPU machine)
+$ docker compose -f docker-compose.server.yml up -d
+
+# Option C: Run only the webui (can run on any machine)
+$ docker compose -f docker-compose.webui.yml up -d
+
+# Services will be available at:
+# - GPU Server: ws://localhost:8080 (WebSocket)
+# - Web UI: http://localhost:8081
+
+# View logs
+$ docker compose logs -f
+
+# To stop containers
+$ docker compose down
+# or for specific compose file:
+$ docker compose -f docker-compose.server.yml down
+```
+
+**Docker Features:**
+- Multi-stage build for optimized container size
+- GPU server runs with NVIDIA Container Runtime for nvidia-smi access
+- Non-root user for security
+- Automatic dependency management with vcpkg
+- Lightweight nginx serving for webui
+- Separate compose files for flexible deployment (server-only, webui-only, or combined)
+- Bridge networking for container communication
+
+### Option 2: Manual Setup (Server + WebUI separately)
+```bash
+# First compile and run the server (see compilation instructions above)
+$ ./build/topg
+
+# Then in another terminal, run webui from webui folder
+$ cd webui
 $ python3 -m http.server 8081
+
+# Or use any other web server to host the webui folder
 ```

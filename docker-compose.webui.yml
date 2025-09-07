@@ -1,0 +1,15 @@
+services:
+  webui:
+    build: 
+      context: ./webui
+      dockerfile: Dockerfile
+    ports:
+      - "8081:80"
+    container_name: topg-webui
+    restart: unless-stopped
+    networks:
+      - topg-network
+
+networks:
+  topg-network:
+    driver: bridge
