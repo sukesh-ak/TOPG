@@ -28,15 +28,7 @@ function addConnection() {
         port: parseInt(port),
         ws: null,
         isConnected: false,
-        data: {
-            utilizationData: [],
-            memoryData: [],
-            tempData: []
-        },
-        gpuInfo: {
-            name: 'Unknown GPU',
-            totalMemory: 0
-        }
+        gpus: new Map() // Map of gpuIndex -> gpu data
     };
 
     connections.set(connectionId, connection);
@@ -195,20 +187,33 @@ function updateGpuGrid() {
         noConnections.style.display = 'none';
 
         connections.forEach((connection, id) => {
-            createGpuCard(connection);
+            if (connection.gpus.size === 0) {
+                // Create a placeholder card if no GPUs detected yet
+                createGpuCard(connection, null);
+            } else {
+                // Create a card for each GPU
+                connection.gpus.forEach((gpu, gpuIndex) => {
+                    createGpuCard(connection, gpuIndex);
+                });
+            }
         });
     }
 }
 
-function createGpuCard(connection) {
+function createGpuCard(connection, gpuIndex) {
     const card = document.createElement('div');
     card.className = `gpu-card ${connection.isConnected ? 'connected' : ''}`;
-    card.id = `gpu-card-${connection.id}`;
+    const cardId = gpuIndex !== null ? `gpu-card-${connection.id}-${gpuIndex}` : `gpu-card-${connection.id}`;
+    card.id = cardId;
+
+    const gpu = gpuIndex !== null ? connection.gpus.get(gpuIndex) : null;
+    const gpuName = gpu ? gpu.name : 'Waiting for data...';
+    const gpuIndexLabel = gpuIndex !== null ? ` (GPU ${gpuIndex})` : '';
 
     card.innerHTML = `
         <div class="gpu-card-header">
             <div class="gpu-card-title">
-                <div class="gpu-card-name">${connection.name}</div>
+                <div class="gpu-card-name">${connection.name}${gpuIndexLabel}</div>
                 <div class="gpu-card-status" style="display: ${connection.isConnected ? 'inline' : 'none'}">🟢</div>
             </div>
             <div class="gpu-card-connection">${connection.host}:${connection.port}</div>
@@ -217,23 +222,23 @@ function createGpuCard(connection) {
             <div class="gpu-metrics">
                 <div class="metric-item">
                     <div class="metric-label">GPU</div>
-                    <div class="metric-value" id="gpu-util-${connection.id}">--</div>
+                    <div class="metric-value" id="gpu-util-${connection.id}-${gpuIndex}">--</div>
                 </div>
                 <div class="metric-item">
                     <div class="metric-label">Memory</div>
-                    <div class="metric-value" id="memory-util-${connection.id}">--</div>
+                    <div class="metric-value" id="memory-util-${connection.id}-${gpuIndex}">--</div>
                 </div>
                 <div class="metric-item">
                     <div class="metric-label">Temp</div>
-                    <div class="metric-value" id="temp-${connection.id}">--</div>
+                    <div class="metric-value" id="temp-${connection.id}-${gpuIndex}">--</div>
                 </div>
             </div>
             <div class="gpu-chart-container">
-                <canvas id="chart-${connection.id}"></canvas>
+                <canvas id="chart-${connection.id}-${gpuIndex}"></canvas>
             </div>
             <div class="gpu-info-row">
-                <div class="gpu-info-item" id="gpu-name-${connection.id}">${connection.gpuInfo.name}</div>
-                <div class="gpu-info-item" id="gpu-memory-${connection.id}">Memory: --</div>
+                <div class="gpu-info-item" id="gpu-name-${connection.id}-${gpuIndex}">${gpuName}</div>
+                <div class="gpu-info-item" id="gpu-memory-${connection.id}-${gpuIndex}">Memory: --</div>
             </div>
         </div>
     `;
@@ -241,7 +246,9 @@ function createGpuCard(connection) {
     gpuGrid.appendChild(card);
 
     // Initialize chart for this GPU
-    initGpuChart(connection.id);
+    if (gpuIndex !== null) {
+        initGpuChart(connection.id, gpuIndex);
+    }
 }
 
 // Data Processing Functions
@@ -249,7 +256,8 @@ function processGpuData(connectionId, item) {
     const connection = connections.get(connectionId);
     if (!connection) return;
 
-    console.log(`=== Processing GPU data for ${connection.name} ===`);
+    const gpuIndex = item["index"] || 0;
+    console.log(`=== Processing GPU ${gpuIndex} data for ${connection.name} ===`);
 
     // Parse GPU data
     const gpuUtil = item["utilization.gpu"] || 0;
@@ -259,37 +267,56 @@ function processGpuData(connectionId, item) {
     const temp = item["temperature.gpu"] || 0;
     const gpuName = item["name"] || "Unknown GPU";
 
-    // Update connection GPU info
-    connection.gpuInfo.name = gpuName;
-    connection.gpuInfo.totalMemory = memTotal;
+    // Get or create GPU data for this index
+    const isNewGpu = !connection.gpus.has(gpuIndex);
+    if (isNewGpu) {
+        connection.gpus.set(gpuIndex, {
+            index: gpuIndex,
+            name: gpuName,
+            totalMemory: memTotal,
+            data: {
+                utilizationData: [],
+                memoryData: [],
+                tempData: []
+            }
+        });
+        // Refresh the GPU grid to add the new GPU card
+        updateGpuGrid();
+    }
+
+    const gpu = connection.gpus.get(gpuIndex);
+
+    // Update GPU info
+    gpu.name = gpuName;
+    gpu.totalMemory = memTotal;
 
     // Update data arrays
-    connection.data.utilizationData.push(gpuUtil);
-    connection.data.memoryData.push(memPercent);
-    connection.data.tempData.push(temp);
+    gpu.data.utilizationData.push(gpuUtil);
+    gpu.data.memoryData.push(memPercent);
+    gpu.data.tempData.push(temp);
 
     // Limit chart history to last 50 points
-    if (connection.data.utilizationData.length > 50) connection.data.utilizationData.shift();
-    if (connection.data.memoryData.length > 50) connection.data.memoryData.shift();
-    if (connection.data.tempData.length > 50) connection.data.tempData.shift();
+    if (gpu.data.utilizationData.length > 50) gpu.data.utilizationData.shift();
+    if (gpu.data.memoryData.length > 50) gpu.data.memoryData.shift();
+    if (gpu.data.tempData.length > 50) gpu.data.tempData.shift();
 
-    // Update UI for this connection
-    updateGpuMetrics(connectionId, gpuUtil, memPercent, temp);
-    updateGpuChart(connectionId);
-    updateGpuInfo(connectionId, gpuName, memTotal);
+    // Update UI for this GPU
+    updateGpuMetrics(connectionId, gpuIndex, gpuUtil, memPercent, temp);
+    updateGpuChart(connectionId, gpuIndex);
+    updateGpuInfo(connectionId, gpuIndex, gpuName, memTotal);
 }
 
-function updateGpuMetrics(connectionId, gpuUtil, memPercent, temp) {
-    const gpuUtilEl = document.getElementById(`gpu-util-${connectionId}`);
-    const memoryUtilEl = document.getElementById(`memory-util-${connectionId}`);
-    const tempEl = document.getElementById(`temp-${connectionId}`);
+function updateGpuMetrics(connectionId, gpuIndex, gpuUtil, memPercent, temp) {
+    const gpuUtilEl = document.getElementById(`gpu-util-${connectionId}-${gpuIndex}`);
+    const memoryUtilEl = document.getElementById(`memory-util-${connectionId}-${gpuIndex}`);
+    const tempEl = document.getElementById(`temp-${connectionId}-${gpuIndex}`);
 
     if (gpuUtilEl) gpuUtilEl.textContent = `${gpuUtil}%`;
     if (memoryUtilEl) memoryUtilEl.textContent = `${memPercent}%`;
     if (tempEl) tempEl.textContent = `${temp}°C`;
 
     // Update connection status indicator
-    const card = document.getElementById(`gpu-card-${connectionId}`);
+    const card = document.getElementById(`gpu-card-${connectionId}-${gpuIndex}`);
     const statusIndicator = card?.querySelector('.gpu-card-status');
     if (statusIndicator) {
         statusIndicator.style.display = 'inline';
@@ -299,10 +326,10 @@ function updateGpuMetrics(connectionId, gpuUtil, memPercent, temp) {
     }
 }
 
-function updateGpuInfo(connectionId, gpuName, memTotal) {
+function updateGpuInfo(connectionId, gpuIndex, gpuName, memTotal) {
     const totalMemoryGB = Math.round(memTotal / 1024 * 100) / 100;
-    const gpuNameEl = document.getElementById(`gpu-name-${connectionId}`);
-    const gpuMemoryEl = document.getElementById(`gpu-memory-${connectionId}`);
+    const gpuNameEl = document.getElementById(`gpu-name-${connectionId}-${gpuIndex}`);
+    const gpuMemoryEl = document.getElementById(`gpu-memory-${connectionId}-${gpuIndex}`);
 
     if (gpuNameEl) gpuNameEl.textContent = gpuName;
     if (gpuMemoryEl) gpuMemoryEl.textContent = `Memory: ${totalMemoryGB} GB`;
@@ -319,8 +346,8 @@ function getThemeColors() {
     };
 }
 
-function initGpuChart(connectionId) {
-    const canvas = document.getElementById(`chart-${connectionId}`);
+function initGpuChart(connectionId, gpuIndex) {
+    const canvas = document.getElementById(`chart-${connectionId}-${gpuIndex}`);
     if (!canvas) return;
 
     const colors = getThemeColors();
@@ -382,21 +409,26 @@ function initGpuChart(connectionId) {
         }
     });
 
-    charts.set(connectionId, chart);
+    const chartKey = `${connectionId}-${gpuIndex}`;
+    charts.set(chartKey, chart);
 }
 
-function updateGpuChart(connectionId) {
-    const chart = charts.get(connectionId);
+function updateGpuChart(connectionId, gpuIndex) {
+    const chartKey = `${connectionId}-${gpuIndex}`;
+    const chart = charts.get(chartKey);
     const connection = connections.get(connectionId);
 
     if (!chart || !connection) return;
 
+    const gpu = connection.gpus.get(gpuIndex);
+    if (!gpu) return;
+
     // Update chart data
-    chart.data.datasets[0].data = [...connection.data.utilizationData];
-    chart.data.datasets[1].data = [...connection.data.memoryData];
+    chart.data.datasets[0].data = [...gpu.data.utilizationData];
+    chart.data.datasets[1].data = [...gpu.data.memoryData];
 
     // Generate labels
-    chart.data.labels = connection.data.utilizationData.map((_, i) => i);
+    chart.data.labels = gpu.data.utilizationData.map((_, i) => i);
 
     chart.update('none');
 }
@@ -545,15 +577,7 @@ function loadConnectionsFromStorage() {
                     port: connData.port,
                     ws: null,
                     isConnected: false,
-                    data: {
-                        utilizationData: [],
-                        memoryData: [],
-                        tempData: []
-                    },
-                    gpuInfo: {
-                        name: 'Unknown GPU',
-                        totalMemory: 0
-                    }
+                    gpus: new Map() // Initialize empty GPU map
                 };
                 connections.set(connData.id, connection);
             });
