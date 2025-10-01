@@ -16,7 +16,7 @@
 #include <cxxopts.hpp>
 
 /*
-    == List of apps using the GPU (implementation later)
+    == List of apps using the GPU (TODO: implementation later)
     $ nvidia-smi --query-compute-apps timestamp,gpu_name,pid,process_name,used_memory
     timestamp, gpu_name, pid, process_name, used_gpu_memory [MiB]
     2025/09/07 22:33:21.481, NVIDIA GeForce RTX 3090, 1106871, /app/llama-server, 23342 MiB
