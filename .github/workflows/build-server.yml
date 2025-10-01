@@ -1,0 +1,136 @@
+name: Build Server
+
+on:
+  push:
+    paths:
+      - 'server/**'
+    branches:
+      - main
+      - develop
+  pull_request:
+    paths:
+      - 'server/**'
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: topg-linux
+            executable_extension: ''
+            zip_name: topg-linux-x64.tar.gz
+          - os: windows-latest
+            artifact_name: topg-windows
+            executable_extension: '.exe'
+            zip_name: topg-windows-x64.zip
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup vcpkg (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          cd server
+          ./vcpkg/bootstrap-vcpkg.sh
+
+      - name: Setup vcpkg (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd server
+          .\vcpkg\bootstrap-vcpkg.bat
+
+      - name: Install dependencies
+        working-directory: server
+        run: |
+          ./vcpkg/vcpkg install
+        shell: bash
+
+      - name: Configure CMake
+        working-directory: server
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        working-directory: server
+        run: cmake --build build --config Release
+
+      - name: Prepare artifacts (Linux)
+        if: runner.os == 'Linux'
+        working-directory: server
+        run: |
+          mkdir -p artifacts
+          cp build/topg artifacts/
+          chmod +x artifacts/topg
+          tar -czf ${{ matrix.zip_name }} -C artifacts topg
+
+      - name: Prepare artifacts (Windows)
+        if: runner.os == 'Windows'
+        working-directory: server
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp build/Release/topg.exe artifacts/ || cp build/topg.exe artifacts/
+
+      - name: Create zip archive (Windows)
+        if: runner.os == 'Windows'
+        working-directory: server
+        shell: pwsh
+        run: |
+          Compress-Archive -Path artifacts\topg.exe -DestinationPath ${{ matrix.zip_name }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: server/${{ matrix.zip_name }}
+          retention-days: 30
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="server-v$(date +'%Y.%m.%d-%H%M%S')"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "date=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Server Build ${{ steps.tag.outputs.date }}
+          body: |
+            Automated server build from commit ${{ github.sha }}
+
+            ## Changes
+            ${{ github.event.head_commit.message }}
+
+            ## Downloads
+            - **Linux**: topg-linux-x64.tar.gz
+            - **Windows**: topg-windows-x64.zip
+          files: |
+            release-artifacts/topg-linux/*.tar.gz
+            release-artifacts/topg-windows/*.zip
+          draft: false
+          prerelease: false
