@@ -48,15 +48,9 @@ jobs:
         working-directory: server
         run: .\vcpkg\bootstrap-vcpkg.bat
 
-      - name: Install dependencies
-        working-directory: server
-        run: |
-          ./vcpkg/vcpkg install
-        shell: bash
-
       - name: Configure CMake
         working-directory: server
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+        run: cmake . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
 
       - name: Build
         working-directory: server
