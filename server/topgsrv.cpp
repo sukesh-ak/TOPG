@@ -16,7 +16,7 @@
 #include <cxxopts.hpp>
 
 /*
-     TODO: Implement later
+     TODO: Implement later to to show GPU used by process
     == List of apps using the GPU
     $ nvidia-smi --query-compute-apps timestamp,gpu_name,pid,process_name,used_memory
     timestamp, gpu_name, pid, process_name, used_gpu_memory [MiB]

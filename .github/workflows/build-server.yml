@@ -13,20 +13,8 @@ on:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            artifact_name: topg-linux
-            executable_extension: ''
-            zip_name: topg-linux-x64.tar.gz
-          - os: windows-latest
-            artifact_name: topg-windows
-            executable_extension: '.exe'
-            zip_name: topg-windows-x64.zip
+    name: Build on Linux
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
@@ -34,19 +22,11 @@ jobs:
 
       - name: Clone vcpkg
         working-directory: server
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git
-        shell: bash
+        run: git clone https://github.com/microsoft/vcpkg.git
 
-      - name: Setup vcpkg (Linux)
-        if: runner.os == 'Linux'
+      - name: Setup vcpkg
         working-directory: server
         run: ./vcpkg/bootstrap-vcpkg.sh
-
-      - name: Setup vcpkg (Windows)
-        if: runner.os == 'Windows'
-        working-directory: server
-        run: .\vcpkg\bootstrap-vcpkg.bat
 
       - name: Configure CMake
         working-directory: server
@@ -56,35 +36,19 @@ jobs:
         working-directory: server
         run: cmake --build build --config Release
 
-      - name: Prepare artifacts (Linux)
-        if: runner.os == 'Linux'
+      - name: Prepare artifacts
         working-directory: server
         run: |
           mkdir -p artifacts
           cp build/topg artifacts/
           chmod +x artifacts/topg
-          tar -czf ${{ matrix.zip_name }} -C artifacts topg
-
-      - name: Prepare artifacts (Windows)
-        if: runner.os == 'Windows'
-        working-directory: server
-        shell: bash
-        run: |
-          mkdir -p artifacts
-          cp build/Release/topg.exe artifacts/ || cp build/topg.exe artifacts/
-
-      - name: Create zip archive (Windows)
-        if: runner.os == 'Windows'
-        working-directory: server
-        shell: pwsh
-        run: |
-          Compress-Archive -Path artifacts\topg.exe -DestinationPath ${{ matrix.zip_name }}
+          tar -czf topg-linux-x64.tar.gz -C artifacts topg
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: server/${{ matrix.zip_name }}
+          name: topg-linux
+          path: server/topg-linux-x64.tar.gz
           retention-days: 30
 
   release:
@@ -124,9 +88,7 @@ jobs:
 
             ## Downloads
             - **Linux**: topg-linux-x64.tar.gz
-            - **Windows**: topg-windows-x64.zip
           files: |
             release-artifacts/topg-linux/*.tar.gz
-            release-artifacts/topg-windows/*.zip
           draft: false
           prerelease: false
