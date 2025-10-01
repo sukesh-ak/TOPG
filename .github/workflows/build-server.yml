@@ -24,6 +24,17 @@ jobs:
         working-directory: server
         run: git clone https://github.com/microsoft/vcpkg.git
 
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: |
+            server/vcpkg/installed
+            server/vcpkg/packages
+            server/vcpkg/buildtrees
+          key: ${{ runner.os }}-vcpkg-${{ hashFiles('server/vcpkg.json') }}
+          restore-keys: |
+            ${{ runner.os }}-vcpkg-
+
       - name: Setup vcpkg
         working-directory: server
         run: ./vcpkg/bootstrap-vcpkg.sh
