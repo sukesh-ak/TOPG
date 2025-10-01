@@ -31,20 +31,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Clone vcpkg
+        working-directory: server
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+        shell: bash
 
       - name: Setup vcpkg (Linux)
         if: runner.os == 'Linux'
-        run: |
-          cd server
-          ./vcpkg/bootstrap-vcpkg.sh
+        working-directory: server
+        run: ./vcpkg/bootstrap-vcpkg.sh
 
       - name: Setup vcpkg (Windows)
         if: runner.os == 'Windows'
-        run: |
-          cd server
-          .\vcpkg\bootstrap-vcpkg.bat
+        working-directory: server
+        run: .\vcpkg\bootstrap-vcpkg.bat
 
       - name: Install dependencies
         working-directory: server
