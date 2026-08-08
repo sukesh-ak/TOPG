@@ -1,4 +1,6 @@
 /server/build
+/server/vcpkg
+/server/artifacts
 /vcpkg
 /server/.vs
 /server/out

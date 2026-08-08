@@ -4,62 +4,104 @@ on:
   push:
     paths:
       - 'server/**'
+      - '.github/workflows/build-server.yml'
     branches:
       - main
       - develop
   pull_request:
     paths:
       - 'server/**'
+      - '.github/workflows/build-server.yml'
 
 jobs:
   build:
-    name: Build on Linux
-    runs-on: ubuntu-latest
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux-x64
+            binary: build/topg
+            archive: topg-linux-x64.tar.gz
+            cmake_flags: ''
+          - os: windows-latest
+            name: windows-x64
+            binary: build/Release/topg.exe
+            archive: topg-windows-x64.zip
+            # Static triplet: self-contained exe, no uv.dll / VC++ redist needed
+            cmake_flags: '-DVCPKG_TARGET_TRIPLET=x64-windows-static'
+          - os: macos-latest
+            name: macos-arm64
+            binary: build/topg
+            archive: topg-macos-arm64.tar.gz
+            cmake_flags: ''
+
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/vcpkg-bincache
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Clone vcpkg
-        working-directory: server
-        run: git clone https://github.com/microsoft/vcpkg.git
+      - name: Create vcpkg binary cache directory
+        shell: bash
+        run: mkdir -p "${{ github.workspace }}/vcpkg-bincache"
 
-      - name: Cache vcpkg
+      # Manifest mode installs into build/vcpkg_installed, so cache vcpkg's
+      # binary packages instead of the vcpkg tree itself
+      - name: Cache vcpkg binary packages
         uses: actions/cache@v4
         with:
-          path: |
-            server/vcpkg/installed
-            server/vcpkg/packages
-            server/vcpkg/buildtrees
+          path: vcpkg-bincache
           key: ${{ runner.os }}-vcpkg-${{ hashFiles('server/vcpkg.json') }}
           restore-keys: |
             ${{ runner.os }}-vcpkg-
 
-      - name: Setup vcpkg
+      - name: Clone vcpkg
         working-directory: server
-        run: ./vcpkg/bootstrap-vcpkg.sh
+        shell: bash
+        run: git clone --depth 1 https://github.com/microsoft/vcpkg.git
+
+      - name: Bootstrap vcpkg
+        working-directory: server
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./vcpkg/bootstrap-vcpkg.bat
+          else
+            ./vcpkg/bootstrap-vcpkg.sh
+          fi
 
       - name: Configure CMake
         working-directory: server
-        run: cmake . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+        shell: bash
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake" ${{ matrix.cmake_flags }}
 
       - name: Build
         working-directory: server
+        shell: bash
         run: cmake --build build --config Release
 
-      - name: Prepare artifacts
+      - name: Package artifact
         working-directory: server
+        shell: bash
         run: |
           mkdir -p artifacts
-          cp build/topg artifacts/
-          chmod +x artifacts/topg
-          tar -czf topg-linux-x64.tar.gz -C artifacts topg
+          cp "${{ matrix.binary }}" artifacts/
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a "${{ matrix.archive }}" ./artifacts/topg.exe
+          else
+            chmod +x artifacts/topg
+            tar -czf "${{ matrix.archive }}" -C artifacts topg
+          fi
 
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: topg-linux
-          path: server/topg-linux-x64.tar.gz
+          name: topg-${{ matrix.name }}
+          path: server/${{ matrix.archive }}
           retention-days: 30
 
   release:
@@ -98,8 +140,12 @@ jobs:
             ${{ github.event.head_commit.message }}
 
             ## Downloads
-            - **Linux**: topg-linux-x64.tar.gz
+            - **Linux (x64)**: topg-linux-x64.tar.gz
+            - **Windows (x64)**: topg-windows-x64.zip
+            - **macOS (Apple Silicon)**: topg-macos-arm64.tar.gz
           files: |
-            release-artifacts/topg-linux/*.tar.gz
+            release-artifacts/topg-linux-x64/*.tar.gz
+            release-artifacts/topg-windows-x64/*.zip
+            release-artifacts/topg-macos-arm64/*.tar.gz
           draft: false
           prerelease: false

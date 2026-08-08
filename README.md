@@ -9,9 +9,17 @@
 ![alt text](assets/webui-settings.png)
 
 
+## Prebuilt binaries
+
+Every push to `main` publishes server binaries for all three platforms on the
+[Releases](https://github.com/sukesh-ak/topg/releases) page:
+- **Linux (x64)**: `topg-linux-x64.tar.gz`
+- **Windows (x64)**: `topg-windows-x64.zip`
+- **macOS (Apple Silicon)**: `topg-macos-arm64.tar.gz`
+
 ## How to compile the server
 
-### On Linux/WSL2/Windows
+### On Linux / macOS / WSL2 / Windows
 Install dependencies using [vcpkg - (VC++ Package Manager)](https://vcpkg.io/en/index.html) 
 
 ```bash
@@ -23,7 +31,7 @@ $ cd topg/server
 $ git clone https://github.com/microsoft/vcpkg.git
 
 # Run the bootstrap script for vcpkg
-# Linux
+# Linux / macOS
 $ ./vcpkg/bootstrap-vcpkg.sh  
 
 # Windows
@@ -36,11 +44,11 @@ $ cmake . -B build -DCMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmak
 $ cmake --build build/
 
 # Run executable with default parameters
-# Linux
+# Linux / macOS
 $ ./build/topg
 
 # Windows
-./build/debug/topg.exe
+.\build\Debug\topg.exe
 ```
 
 #### How to run the server with custom host and port settings

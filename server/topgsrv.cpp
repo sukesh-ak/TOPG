@@ -15,6 +15,10 @@
 #include <atomic>
 #include <cxxopts.hpp>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 /*
      TODO: Implement later to to show processes using GPU
     == List of apps using the GPU
@@ -170,8 +174,6 @@ struct UserData
     bool live = false;
 };
 
-uWS::App *globalApp = nullptr;
-
 class GpuServer
 {
 public:
@@ -247,23 +249,24 @@ public:
                } else {
                    std::cerr << "❌ Failed to listen on " << host << ":" << port << "\n";
                } });
-
-        globalApp = &app;
     }
 
     void setupTimer()
     {
-        globalApp = &app;
-        std::thread([this]()
+        // uWS is single-threaded: publish() may only be called on the loop
+        // thread, so the poller thread hands each payload over via defer().
+        uWS::Loop *loop = uWS::Loop::get();
+        std::thread([this, loop]()
                     {
             while (true) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(update_interval_ms));
-                if (globalApp) {
-                    std::string output = exec_command(NVIDIA_SMI_QUERY_STATS);
-                    auto parsed = parse_nvidia_smi_output(output);
-                    std::string json = to_json_array(parsed);
-                    globalApp->publish("gpu_live", json, uWS::OpCode::TEXT);
-                }
+                std::string output = exec_command(NVIDIA_SMI_QUERY_STATS);
+                auto parsed = parse_nvidia_smi_output(output);
+                std::string json = to_json_array(parsed);
+                loop->defer([this, json]()
+                {
+                    app.publish("gpu_live", json, uWS::OpCode::TEXT);
+                });
             } })
             .detach();
     }
@@ -276,6 +279,10 @@ public:
 
 int main(int argc, char *argv[])
 {
+#ifdef _WIN32
+    // Status output contains UTF-8 emoji; the default console codepage mangles them
+    SetConsoleOutputCP(CP_UTF8);
+#endif
     try
     {
         cxxopts::Options options("topgsrv", "TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket");

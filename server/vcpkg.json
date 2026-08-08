@@ -5,8 +5,6 @@
     "description": "TOPG GPU Monitoring Server - Real-time GPU stats via WebSocket",
     "license": "MIT",
     "dependencies": [
-        "fmt",
-        "rapidjson",
         "cxxopts",
         "uwebsockets"
     ]
