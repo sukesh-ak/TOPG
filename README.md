@@ -54,6 +54,41 @@ Usage:
       --help      Print usage information
 ```
 
+## What the server publishes
+
+Send `/live` after connecting and the server pushes one JSON array per
+update — one object per GPU:
+
+```json
+[{
+  "index": 0,
+  "name": "NVIDIA GeForce RTX 3090",
+  "utilization.gpu": 12,
+  "utilization.memory": 17,
+  "memory.total": 24576,
+  "memory.free": 767,
+  "memory.used": 23358,
+  "temperature.gpu": 61,
+  "clocks.gr": 1815,
+  "power.draw": 118.42,
+  "power.limit": 350.00,
+  "pstate": "P2",
+  "clocks_event_reasons.active": "0x0000000000000001"
+}]
+```
+
+Everything through `temperature.gpu` is always present. The last five are
+**optional**: not every card and driver reports them (a laptop GPU has no
+readable power limit, for instance), and a field is published only when
+`nvidia-smi` gives a real value rather than `[N/A]`. So a client can tell
+"this card cannot report it" from "it is zero" — which matters for a gauge
+that should show nothing rather than invent a reading.
+
+Memory is MiB, clocks MHz, power watts, temperature °C.
+`clocks_event_reasons.active` is a bitmask; the slowdown bits are
+`0x08` hardware, `0x20` software thermal, `0x40` hardware thermal and
+`0x80` power brake — non-zero there means the card is being held back.
+
 ## Websocket Web UI Client for visualization
 
 ### Option 1: Using Docker (Recommended)

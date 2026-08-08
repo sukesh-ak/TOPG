@@ -30,17 +30,50 @@ const std::string NVIDIA_SMI_QUERY_PROCS =
 
 /*
     == GPU Stats
-    $ nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu
-    index, name, utilization.gpu [%], utilization.memory [%], memory.total [MiB], memory.free [MiB], memory.used [MiB], temperature.gpu
-    0, NVIDIA GeForce RTX 3090, 0 %, 25 %, 24576 MiB, 767 MiB, 23358 MiB, 29
+    $ nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu,clocks.gr,power.draw,power.limit,pstate,clocks_event_reasons.active
+    index, name, utilization.gpu [%], utilization.memory [%], memory.total [MiB], memory.free [MiB], memory.used [MiB], temperature.gpu, clocks.current.graphics [MHz], power.draw [W], power.limit [W], pstate, clocks_event_reasons.active
 
-    $ nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits
-    0, NVIDIA GeForce RTX 3090, 0, 17, 24576, 767, 23358, 29
+    $ nvidia-smi --query-gpu=... --format=csv,noheader,nounits
+    0, NVIDIA GeForce RTX 3090, 0, 17, 24576, 767, 23358, 29, 1815, 118.42, 350.00, P2, 0x0000000000000001
+
+    The last five are OPTIONAL in the published JSON. They are not reported
+    on every card or driver -- a laptop GPU has no readable power limit, and
+    older drivers spell the reasons field clocks_throttle_reasons.active --
+    so each is emitted only when it parses as the type it should be. A client
+    that has never heard of them is unaffected; one that wants them can tell
+    "absent" from "zero", which matters for a gauge that must not invent a
+    reading it does not have.
 */
 const std::string NVIDIA_SMI_QUERY_STATS =
-    "nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu --format=csv,noheader,nounits";
+    "nvidia-smi --query-gpu=index,name,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used,temperature.gpu,clocks.gr,power.draw,power.limit,pstate,clocks_event_reasons.active --format=csv,noheader,nounits";
 
-std::regex csv_regex(R"(^(\d+),\s*([^,]+?),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+)$)");
+std::regex csv_regex(R"(^(\d+),\s*([^,]+?),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),\s*([^,]+?),\s*([^,]+?),\s*([^,]+?),\s*([^,]+?),\s*([^,]+?)$)");
+
+// The optional fields arrive as "[N/A]" where the card cannot report them,
+// so each is published only when it looks like what it claims to be.
+bool is_uint(const std::string &s)
+{
+    return !s.empty() && s.find_first_not_of("0123456789") == std::string::npos;
+}
+
+bool is_decimal(const std::string &s)
+{
+    if (s.empty() || s.find_first_not_of("0123456789.") != std::string::npos)
+        return false;
+    return std::count(s.begin(), s.end(), '.') <= 1 && s != ".";
+}
+
+// "P0".."P15"
+bool is_pstate(const std::string &s)
+{
+    return s.size() >= 2 && s.size() <= 3 && s[0] == 'P' && is_uint(s.substr(1));
+}
+
+bool is_hex_mask(const std::string &s)
+{
+    return s.size() > 2 && s.rfind("0x", 0) == 0 &&
+           s.find_first_not_of("0123456789abcdefABCDEF", 2) == std::string::npos;
+}
 
 std::string exec_command(const std::string &cmd)
 {
@@ -85,7 +118,7 @@ std::vector<std::string> parse_nvidia_smi_output(const std::string &raw_output)
             name.erase(0, name.find_first_not_of(" \t"));
             name.erase(name.find_last_not_of(" \t") + 1);
 
-            result.push_back(
+            std::string obj =
                 "{\"index\":" + match[1].str() +
                 ",\"name\":\"" + name + "\"" +
                 ",\"utilization.gpu\":" + match[3].str() +
@@ -93,8 +126,20 @@ std::vector<std::string> parse_nvidia_smi_output(const std::string &raw_output)
                 ",\"memory.total\":" + match[5].str() +
                 ",\"memory.free\":" + match[6].str() +
                 ",\"memory.used\":" + match[7].str() +
-                ",\"temperature.gpu\":" + match[8].str() +
-                "}");
+                ",\"temperature.gpu\":" + match[8].str();
+
+            if (is_uint(match[9].str()))
+                obj += ",\"clocks.gr\":" + match[9].str();
+            if (is_decimal(match[10].str()))
+                obj += ",\"power.draw\":" + match[10].str();
+            if (is_decimal(match[11].str()))
+                obj += ",\"power.limit\":" + match[11].str();
+            if (is_pstate(match[12].str()))
+                obj += ",\"pstate\":\"" + match[12].str() + "\"";
+            if (is_hex_mask(match[13].str()))
+                obj += ",\"clocks_event_reasons.active\":\"" + match[13].str() + "\"";
+
+            result.push_back(obj + "}");
         }
         catch (...)
         {
